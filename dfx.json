@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "ERecords_backend": {
+      "main": "src/ERecords_backend/main.mo",
+      "type": "motoko"
+    },
+    "ERecords_frontend": {
+      "dependencies": [
+        "ERecords_backend"
+      ],
+      "source": [
+        "src/ERecords_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "ERecords_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
