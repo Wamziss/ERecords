@@ -1,30 +1,27 @@
 import { useState } from 'react';
 import { ERecords_backend } from 'declarations/ERecords_backend';
+import Fileupload from './components/Fileupload';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Sidebar from './components/Sidebar';
+
 
 function App() {
-  const [greeting, setGreeting] = useState('');
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    const name = event.target.elements.name.value;
-    ERecords_backend.greet(name).then((greeting) => {
-      setGreeting(greeting);
-    });
-    return false;
+  const styles ={
+    mainContainer: {
+      height: '100vh',
+      fontFamily: 'verdana'
+
+    }
   }
 
   return (
-    <main>
-      <img src="/logo2.svg" alt="DFINITY logo" />
-      <br />
-      <br />
-      <form action="#" onSubmit={handleSubmit}>
-        <label htmlFor="name">Enter your name: &nbsp;</label>
-        <input id="name" alt="Name" type="text" />
-        <button type="submit">Click Me!</button>
-      </form>
-      <section id="greeting">{greeting}</section>
-    </main>
+      <div style={styles.mainContainer}>
+        <div class="row">
+          <div class="col-sm-2"><Sidebar/></div>
+          <div class="col-sm-10"><Fileupload/></div>
+        </div>
+      </div>
   );
 }
 
