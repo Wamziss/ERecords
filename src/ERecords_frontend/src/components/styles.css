@@ -8,13 +8,13 @@
     background-color: #fff;
 }
 .navbar{
-    background-color: #000;
+    background-color: #fff;
     height: 15vh;
 }
 
 .hero-section {
     /* background:  url('../assets/access.jpg')  no-repeat center center/cover; */
-    background-color: #6e06b32b;
+    background-color: #fff;
     height: 85vh;
     color: #000;
 }
