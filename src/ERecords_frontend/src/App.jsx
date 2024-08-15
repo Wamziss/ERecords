@@ -9,18 +9,20 @@ function App() {
 
   const styles ={
     mainContainer: {
+      display: 'flex',
+      fontFamily: 'verdana',
+      margin: 0,
+      padding: 0,
+      width: '100%',
       height: '100vh',
-      fontFamily: 'verdana'
-
+      overflowY: 'scroll',
     }
   }
 
   return (
-      <div style={styles.mainContainer}>
-        <div class="row">
-          <div class="col-sm-2"><Sidebar/></div>
-          <div class="col-sm-10"><Fileupload/></div>
-        </div>
+      <div style={styles.mainContainer} className='row'>
+          <Sidebar/>
+          <Fileupload/>
       </div>
   );
 }
