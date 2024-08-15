@@ -1,29 +1,24 @@
-import { useState } from 'react';
-import { ERecords_backend } from 'declarations/ERecords_backend';
-import Fileupload from './components/Fileupload';
+import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import Sidebar from './components/Sidebar';
-
-
+import Home from './components/Home';
+import Layout from './components/Layout';
 function App() {
 
-  const styles ={
-    mainContainer: {
-      display: 'flex',
-      fontFamily: 'verdana',
-      margin: 0,
-      padding: 0,
-      width: '100%',
-      height: '100vh',
-      overflowY: 'scroll',
+  const path = window.location.pathname;
+
+  const renderPage = () => {
+    switch (path) {
+      case '/Layout':
+        return <Layout />;    
+      default:
+        return <Home />;
     }
-  }
+  };
 
   return (
-      <div style={styles.mainContainer} className='row'>
-          <Sidebar/>
-          <Fileupload/>
-      </div>
+    <div className="App">
+      {renderPage()}
+    </div>
   );
 }
 
