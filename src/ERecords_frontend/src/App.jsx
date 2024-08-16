@@ -1,15 +1,27 @@
 import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Home from './components/Home';
-import Layout from './components/Layout';
+import Fileupload from './components/pages/Fileupload';
+import Shared from './components/pages/Shared';
+import Archived from './components/pages/Archived';
+import Settings from './components/pages/Settings';
+
 function App() {
 
   const path = window.location.pathname;
 
   const renderPage = () => {
-    switch (path) {
-      case '/Layout':
-        return <Layout />;    
+    switch (path) { 
+        case '/Home':
+          return <Home />;    
+        case '/Files':
+          return <Fileupload />;    
+        case '/Shared':
+          return <Shared/>;   
+        case '/Archived':
+          return <Archived />;  
+        case '/Settings':
+          return <Settings />;  
       default:
         return <Home />;
     }

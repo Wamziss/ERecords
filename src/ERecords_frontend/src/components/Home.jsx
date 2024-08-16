@@ -20,7 +20,7 @@ function Home() {
             identityProvider: process.env.II_URL,
             onSuccess: () => {
               console.log("Logged in!");
-              window.location.href = "/Layout"; // Change the URL to navigate to the "/UserManagement" page
+              window.location.href = "/Files"; // Change the URL to navigate to the "/UserManagement" page
             },
           }).catch((error) => {
             console.error("Login failed:", error);
@@ -40,7 +40,7 @@ function Home() {
                             <span className="navbar-toggler-icon"></span>
                         </button>
                         <div className="collapse navbar-collapse" id="navbarNav">
-                            <ul className="navbar-nav ms-auto">
+                            <ul className="navbar-nav ms-auto" style={{fontWeight: 'bold'}}>
                                 <li className="nav-item">
                                     <a className="nav-link" href="#">Home</a>
                                 </li>
@@ -51,7 +51,7 @@ function Home() {
                                     <a className="nav-link" href="#">About</a>
                                 </li>
                                 <li className="nav-item">
-                                    <a className="nav-link btn text-white" style={{backgroundColor: '#6e06b3'}} onClick={(event) => handleSignIn(event)}>Get Started</a>
+                                    <a className="nav-link btn action-btn btn-md" style={{boxShadow: '1px 1px 4px #333'}} onClick={(event) => handleSignIn(event)}>Get Started</a>
                                 </li>
                             </ul>
                         </div>
@@ -63,7 +63,7 @@ function Home() {
                         <div className='hero-txtbox'>
                         <h1 className="display-4 hero-txt">Secure & Decentralized Records Management</h1>
                         <p className="lead hero-txt">Manage and store your records securely on the blockchain with E-Records.</p>
-                        <a href="#" className="action-btn btn btn-lg mt-4" style={{}}>Get Started</a>
+                        <a className="action-btn btn btn-lg mt-4" style={{boxShadow: '1px 1px 4px #333'}} onClick={(event) => handleSignIn(event)}>Join Us → </a>
                         </div>
                         {/* <p>Share your documents with confidence, knowing they're tamper-proof.</p>
                         <p>Access your files anytime, anywhere, with our decentralized storage solution.</p> */}
@@ -78,7 +78,7 @@ function Home() {
                     <p className="lead mb-5">We offer the most secure and transparent records management on the blockchain.</p>
                     <div className="row justify-content-between">
                         <div className="col feature-card">
-                            <img src={security} alt="Feature 1" className="img-fluid mb-3" />
+                            <img src={security} alt="Feature 1" className="img-fluid mb-3" style={{}} />
                             <h4>Security</h4>
                             <p>Your records are encrypted and stored securely on the blockchain.</p>
                         </div>
@@ -101,22 +101,22 @@ function Home() {
                     <div className="container">
                         <div className="row align-items-center">
                             <div className="col-md-6">
-                                <img src={decentralized} alt="About Us" className="img-fluid"/>
+                                <img src={decentralized} alt="About Us" className="img-fluid my-img"/>
                             </div>
                             <div className="col-md-6">
                                 <h2>About E-Records</h2>
                                 <p>E-Records is leading the way in decentralized record management, offering unmatched security, speed, and transparency. With our blockchain-based platform, your data is always safe and accessible, no matter where you are.</p>
-                                <a href="#" className="btn action-btn mt-3">Learn More</a>
+                                <a href="#" className="btn mt-3" style={{border: '2px solid #6e06b3', borderRadius: 20}}>Learn More</a>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <section className="cta-section py-5 text-white">
+                <section className="cta-section py-5">
                     <div className="container text-center">
                         <h2>Ready to Secure Your Records?</h2>
                         <p style={{color: '#333'}}>Join the many users who trust E-Records for their record management needs.</p>
-                        <a href="#" className="btn btn-lg mt-3 action-btn">Get Started Now → </a>
+                        <a className="btn btn-lg mt-3 action-btn" style={{boxShadow: '1px 1px 4px #333'}} onClick={(event) => handleSignIn(event)}>Get Started Now → </a>
                     </div>
                 </section>
                 
