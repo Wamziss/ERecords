@@ -8,6 +8,12 @@ import { AuthClient } from '@dfinity/auth-client';
 import { createActor } from '../../../../declarations/ERecords_backend';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
+import { Actor, HttpAgent } from '@dfinity/agent';
+import { idlFactory } from '../../../../declarations/ERecords_backend/ERecords_backend.did.js';
+
+const canisterId = 'mngtr-gaaaa-aaaal-qjqfa-cai';
+const agent = new HttpAgent();
+const erecords = Actor.createActor(idlFactory, { agent, canisterId });
 
 function Fileupload() {
     const [files, setFiles] = useState([]);
@@ -79,33 +85,36 @@ function Fileupload() {
 
     const handleFilesUpload = async (uploadedFiles) => {
         try {
-            const newFiles = Array.from(uploadedFiles).map(file => ({
-                name: file.name,
-                uploadTime: new Date().toLocaleString(),
-                fileData: file
-            }));
-
-            setFiles([...files, ...newFiles]);
-
-            // Upload each file to the backend
-            const authClient = await AuthClient.create();
-            const identity = authClient.getIdentity();
-            const eRecordsActor = createActor(process.env.CANISTER_ID, {
-                agentOptions: {
-                    identity,
-                },
-            });
-
-            for (const file of newFiles) {
-                const arrayBuffer = await file.fileData.arrayBuffer();
-                const fileBlob = new Uint8Array(arrayBuffer);
-                await eRecordsActor.uploadFile(file.name, fileBlob);
-            }
-
+          const newFiles = Array.from(uploadedFiles).map(file => ({
+            name: file.name,
+            uploadTime: new Date().toLocaleString(),
+            fileData: file
+          }));
+      
+          setFiles([...files, ...newFiles]);
+      
+          // Create AuthClient and get identity
+          const authClient = await AuthClient.create();
+          const identity = authClient.getIdentity();
+      
+          // Create the actor with the identity
+          const eRecordsActor = createActor(process.env.REACT_APP_CANISTER_ID, {
+            agentOptions: {
+              identity,
+            },
+          });
+      
+          // Upload each file to the backend canister
+          for (const file of newFiles) {
+            const arrayBuffer = await file.fileData.arrayBuffer();
+            const fileBlob = new Uint8Array(arrayBuffer);
+            await eRecordsActor.uploadFile(file.name, fileBlob);
+          }
+      
         } catch (error) {
-            console.error('File upload failed:', error);
+          console.error('File upload failed:', error);
         }
-    };
+      };
 
     const handleFileInputChange = (event) => {
         handleFilesUpload(event.target.files);
