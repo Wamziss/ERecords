@@ -21,6 +21,16 @@
       "packtool": ""
     }
   },
+  "networks": {
+    "ic": {
+      "providers": ["https://ic0.app"],
+      "wallet_canister": "bd3sg-teaaa-aaaaa-qaaba-cai"
+    },
+    "testnet": {
+      "providers": ["https://testnet.ic0.app"],
+      "wallet_canister": "bd3sg-teaaa-aaaaa-qaaba-cai"
+    }
+  },
   "output_env_file": ".env",
   "version": 1
 }
