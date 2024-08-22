@@ -2,37 +2,34 @@ import React, { useState, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../styles.css';
+import './Styles.css';
 import ShareModal from '../subcomponents/ShareModal';
 import Sidebar from '../Sidebar';
-import { AuthClient } from '@dfinity/auth-client';
-import { createActor } from '../../../../declarations/ERecords_backend';
-import Modal from 'react-bootstrap/Modal';
-import Button from 'react-bootstrap/Button';
+// import { AuthClient } from '@dfinity/auth-client';
+// import { createActor } from '../../../../declarations/ERecords_backend';
+// import Modal from 'react-bootstrap/Modal';
+// import Button from 'react-bootstrap/Button';
 import { Actor, HttpAgent } from '@dfinity/agent';
 import { idlFactory } from '../../../../declarations/ERecords_backend/ERecords_backend.did.js';
 
-const canisterId = 'mngtr-gaaaa-aaaal-qjqfa-cai';
+const canisterId = import.meta.env.VITE_CANISTER_ID;
 const agent = new HttpAgent();
 const erecords = Actor.createActor(idlFactory, { agent, canisterId });
 
 function Fileupload() {
     const [files, setFiles] = useState([]);
+    const [folders, setFolders] = useState([]);
     const [isFocused, setIsFocused] = useState(false);
     const fileInputRef = useRef(null);
+    const folderInputRef = useRef(null);
     const [showShareModal, setShowShareModal] = useState(false);
     const [showOptionsModal, setShowOptionsModal] = useState(false);
     const [modalFileIndex, setModalFileIndex] = useState(null);
-    const [sharedFiles, setSharedFiles] = useState([]);
-    const [archivedFiles, setArchivedFiles] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
+    const [selectedFolder, setSelectedFolder] = useState(null);
     const accessLink = "Accesslink://accesslink"; // Placeholder for dynamic generation
 
-    // const handleShareClick = (index) => {
-    //     setModalFileIndex(index);
-    //     setShowShareModal(true);
-    // };
     const handleShareClick = (index) => {
-        
         const file = files[index];
         const sharedFiles = JSON.parse(localStorage.getItem('sharedFiles')) || [];
         sharedFiles.push({
@@ -42,9 +39,7 @@ function Fileupload() {
         localStorage.setItem('sharedFiles', JSON.stringify(sharedFiles));
         setModalFileIndex(index);
         setShowShareModal(true);
-        
     };
-    
 
     const handleCloseShareModal = () => {
         setShowShareModal(false);
@@ -64,61 +59,83 @@ function Fileupload() {
     const handleShare = () => {
         if (selectedFile !== null) {
             const fileToShare = files[selectedFile];
-            setSharedFiles([...sharedFiles, {
-                name: fileToShare.name,
-                sharedTime: new Date().toLocaleString(),
-            }]);
+            setFiles(prevFiles => prevFiles.map((file, index) => 
+                index === selectedFile ? { ...file, sharedTime: new Date().toLocaleString() } : file
+            ));
             handleCloseShareModal();
         }
     };
 
     const handleArchive = () => {
         if (selectedFile !== null) {
-            const fileToArchive = files[selectedFile];
-            setArchivedFiles([...archivedFiles, {
-                name: fileToArchive.name,
-                archivedTime: new Date().toLocaleString(),
-            }]);
+            setFiles(prevFiles => prevFiles.filter((_, index) => index !== selectedFile));
             handleCloseOptionsModal();
         }
     };
 
-    const handleFilesUpload = async (uploadedFiles) => {
+    const handleFilesUpload = async (event) => {
         try {
-          const newFiles = Array.from(uploadedFiles).map(file => ({
-            name: file.name,
-            uploadTime: new Date().toLocaleString(),
-            fileData: file
-          }));
-      
-          setFiles([...files, ...newFiles]);
-      
-          // Create AuthClient and get identity
-          const authClient = await AuthClient.create();
-          const identity = authClient.getIdentity();
-      
-          // Create the actor with the identity
-          const eRecordsActor = createActor(process.env.REACT_APP_CANISTER_ID, {
-            agentOptions: {
-              identity,
-            },
-          });
-      
-          // Upload each file to the backend canister
-          for (const file of newFiles) {
-            const arrayBuffer = await file.fileData.arrayBuffer();
-            const fileBlob = new Uint8Array(arrayBuffer);
-            await eRecordsActor.uploadFile(file.name, fileBlob);
-          }
-      
-        } catch (error) {
-          console.error('File upload failed:', error);
-        }
-      };
+            const uploadedItems = Array.from(event.target.files);
+            const newFiles = uploadedItems.map(file => ({
+                name: file.name,
+                uploadTime: new Date().toLocaleString(),
+                fileData: file,
+                type: 'file',
+            }));
 
-    const handleFileInputChange = (event) => {
-        handleFilesUpload(event.target.files);
+            setFiles(prevFiles => [...prevFiles, ...newFiles]);
+
+            // Example of how you might handle actual file upload to server
+            // This part needs to be implemented based on your backend API
+            newFiles.forEach(async (file) => {
+                const arrayBuffer = await file.fileData.arrayBuffer();
+                console.log(`Uploading file: ${file.name}`);
+            });
+        } catch (error) {
+            console.error('File upload failed:', error);
+        }
     };
+
+    const handleFolderUpload = (event) => {
+        try {
+            const uploadedItems = Array.from(event.target.files);
+            const newFolders = [];
+    
+            // Process folders
+            uploadedItems.forEach(file => {
+                const folderPath = file.webkitRelativePath.split('/');
+                const folderName = folderPath[0];
+                const fileName = folderPath.slice(1).join('/');
+    
+                let folder = newFolders.find(f => f.name === folderName);
+                if (!folder) {
+                    folder = { name: folderName, files: [] };
+                    newFolders.push(folder);
+                }
+                folder.files.push({
+                    name: fileName,
+                    uploadTime: new Date().toLocaleString(),
+                    fileData: file,
+                });
+            });
+    
+            // Update state with new folders
+            setFolders(prevFolders => [...prevFolders, ...newFolders]);
+            
+            // Example of how you might handle actual folder upload to server
+            newFolders.forEach(async (folder) => {
+                console.log(`Uploading folder: ${folder.name}`);
+                // Process each file in the folder
+                folder.files.forEach(async (file) => {
+                    const arrayBuffer = await file.fileData.arrayBuffer();
+                    // Perform upload operation here
+                });
+            });
+        } catch (error) {
+            console.error('Folder upload failed:', error);
+        }
+    };
+    
 
     const handleDragOver = (event) => {
         event.preventDefault();
@@ -126,11 +143,25 @@ function Fileupload() {
 
     const handleDrop = (event) => {
         event.preventDefault();
-        handleFilesUpload(event.dataTransfer.files);
+        handleFilesUpload(event);
     };
 
     const handleUploadClick = () => {
-        fileInputRef.current.click();
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleUploadFolderClick = () => {
+        if (folderInputRef.current) {
+            folderInputRef.current.click();
+        }
+    };
+
+    const handleFolderToggle = (index) => {
+        const updatedFolders = [...folders];
+        updatedFolders[index].isOpen = !updatedFolders[index].isOpen;
+        setFolders(updatedFolders);
     };
 
     const styles = {
@@ -183,255 +214,104 @@ function Fileupload() {
                     <i className="bi bi-search" style={styles.searchIcon}></i>
                 </div>
                 <div className="file-upload-container">
-                    <p className='upload-txt'>Upload Files</p>
+                    <span className='upload-txt'>Upload Files</span>
                     <div className='file-upload'>
-                        <div
-                            className="upload-box"
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop}
-                            onClick={handleUploadClick}
-                        >
-                            <input
-                                type="file"
-                                multiple
-                                ref={fileInputRef}
-                                style={{ display: 'none' }}
-                                onChange={handleFileInputChange}
-                            />
-                            <span style={{ margin: 'auto', color: 'gray', fontSize: '16' }}>Drag & drop files here or click to upload</span>
+                        <div style={{display: 'flex', flexDirection: 'column', height: '100%', width: '80%'}}>
+                            <div className='upload-btns'>
+                                <button className="upload-btn" onClick={handleUploadClick}>
+                                    <i className="bi bi-upload"></i> Select File
+                                </button>
+                                <button className="upload-btn" onClick={handleUploadFolderClick}>
+                                    <i className="bi bi-folder2-open"></i> Upload Folder
+                                </button>
+                                <input
+                                    ref={folderInputRef}
+                                    id="folder-upload-input"
+                                    type="file"
+                                    webkitdirectory="true"
+                                    directory=""
+                                    multiple
+                                    style={{ display: 'none' }}
+                                    onChange={handleFolderUpload}
+                                />
+                            </div>
+                            <div
+                                className="upload-box"
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onClick={handleUploadClick}
+                                style={{display: 'flex', flexDirection: 'column'}}
+                            >
+                                <div>
+                                    <input
+                                        ref={fileInputRef}
+                                        id="file-upload-input"
+                                        type="file"
+                                        multiple
+                                        style={{ display: 'none' }}
+                                        onChange={handleFilesUpload}
+                                    />
+                                    <span style={{ margin: 'auto', color: 'gray', fontSize: '16' }}>
+                                        Drag & drop files here or click to upload
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div className='upload-btns'>
+                        <div className='ext-upload-btns'>
                             <span style={{ fontSize: 10, color: 'gray', }}>upload from*</span>
-                            <button className="upload-btn" onClick={() => alert('coming soon!')}>
-                                <i className="bi bi-cloud-arrow-up-fill"></i> Google Drive
-                            </button>
-                            <button className="upload-btn" onClick={() => alert('coming soon!')}>
-                                <i className="bi bi-dropbox"></i> Drop Box
-                            </button>
+                            <button className="ext-upload-btn" onClick={() => alert('coming soon!')}>
+                                 <i className="bi bi-cloud-arrow-up-fill"></i> Google Drive
+                             </button>
+                             <button className="ext-upload-btn" onClick={() => alert('coming soon!')}>
+                                 <i className="bi bi-dropbox"></i> Drop Box
+                             </button>
                         </div>
                     </div>
                 </div>
                 <div className="files-list">
+                    {folders.map((folder, index) => (
+                        <div key={index} className="folder-item">
+                            <div className="folder-header" onClick={() => handleFolderToggle(index)}>
+                                <i className={`bi ${folder.isOpen ? 'bi-folder-open' : 'bi-folder'}`}></i>
+                                <p className="folder-name">{folder.name}</p>
+                            </div>
+                            {folder.isOpen && (
+                                <div className="folder-contents">
+                                    {folder.files.map((file, fileIndex) => (
+                                        <div key={fileIndex} className="file-item">
+                                            <div className="file-details">
+                                                <p className="file-name">{file.name}</p>
+                                                <p className="file-upload-time">{file.uploadTime}</p>
+                                                <div className="file-actions">
+                                                    <i className="bi bi-three-dots" onClick={() => handleOptionsClick(fileIndex)}></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
                     {files.map((file, index) => (
                         <div key={index} className="file-item">
-                            <div className="file-details">
+                                                        <div className="file-details">
                                 <p className="file-name">{file.name}</p>
-                                <p className="upload-time">{file.uploadTime}</p>
+                                <p className="file-upload-time">{file.uploadTime}</p>
                             </div>
                             <div className="file-actions">
                                 <i className="bi bi-share" onClick={() => handleShareClick(index)}></i>
-                                {modalFileIndex === index && (
-                                    <ShareModal show={showShareModal} handleClose={handleCloseShareModal} accessLink={accessLink} />
-                                )}
+                                    {modalFileIndex === index && (
+                                        <ShareModal show={showShareModal} handleClose={handleCloseShareModal} accessLink={accessLink} />
+                                    )}
                                 <i className="bi bi-three-dots" onClick={() => handleOptionsClick(index)}></i>
                             </div>
                         </div>
                     ))}
                 </div>
-
-                {/* Options Modal */}
-                <Modal show={showOptionsModal} onHide={handleCloseOptionsModal}>
-                    <Modal.Header closeButton>
-                        <Modal.Title>File Options</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Button variant="secondary" onClick={handleArchive}>Archive</Button>
-                        <Button variant="danger" className="ms-2" onClick={() => alert('Delete option coming soon!')}>Delete</Button>
-                        <Button variant="warning" className="ms-2" onClick={() => alert('Rename option coming soon!')}>Rename</Button>
-                    </Modal.Body>
-                </Modal>
             </div>
         </div>
     );
-}
+};
 
 export default Fileupload;
 
-
-// import React, { useState, useRef, useEffect } from 'react';
-// import 'bootstrap/dist/css/bootstrap.min.css';
-// import 'bootstrap-icons/font/bootstrap-icons.css';
-// import '../styles.css';
-// import ShareModal from '../subcomponents/ShareModal';
-// import Sidebar from '../Sidebar';
-// import { AuthClient } from '@dfinity/auth-client';
-// import { createActor } from '../../../../declarations/ERecords_backend';
-
-// function Fileupload() {
-//     const [files, setFiles] = useState([]);
-//     const [isFocused, setIsFocused] = useState(false);
-//     const fileInputRef = useRef(null);
-//     const [showModal, setShowModal] = useState(false);
-//     const [modalFileIndex, setModalFileIndex] = useState(null);
-
-//     const handleShareClick = async (index) => {
-//         setModalFileIndex(index);
-//         setShowModal(true);
-//     };
-
-//     const handleCloseModal = () => {
-//         setShowModal(false);
-//         setModalFileIndex(null);
-//     };
-
-//     const handleFilesUpload = async (uploadedFiles) => {
-//         try {
-//             const newFiles = await Promise.all(
-//                 Array.from(uploadedFiles).map(async (file) => {
-//                     const arrayBuffer = await file.arrayBuffer();
-//                     const fileBlob = new Uint8Array(arrayBuffer);
-    
-//                     const authClient = await AuthClient.create();
-//                     const identity = authClient.getIdentity();
-//                     const eRecordsActor = createActor(process.env.CANISTER_ID, {
-//                         agentOptions: { identity },
-//                     });
-    
-//                     const accessLink = await eRecordsActor.uploadFile(file.name, fileBlob);
-//                     console.log('Access link received:', accessLink); // Debugging
-    
-//                     return {
-//                         name: file.name,
-//                         uploadTime: new Date().toLocaleString(),
-//                         accessLink: accessLink,
-//                     };
-//                 })
-//             );
-    
-//             console.log('New Files:', newFiles); // Debugging
-//             setFiles([...files, ...newFiles]); // Add new files to the state
-//             console.log('Files state after update:', files); // Debugging
-//         } catch (error) {
-//             console.error('File upload failed:', error);
-//         }
-//     };
-    
-
-//     const handleFileInputChange = (event) => {
-//         handleFilesUpload(event.target.files);
-//     };
-
-//     const handleDragOver = (event) => {
-//         event.preventDefault();
-//     };
-
-//     const handleDrop = (event) => {
-//         event.preventDefault();
-//         handleFilesUpload(event.dataTransfer.files);
-//     };
-
-//     const handleUploadClick = () => {
-//         fileInputRef.current.click();
-//     };
-
-//     const styles = {
-//         mainContainer: {
-//             display: 'flex',
-//             fontFamily: 'verdana',
-//             margin: 0,
-//             padding: 0,
-//             width: '100%',
-//             height: '100vh',
-//             overflowY: 'scroll',
-//         },
-//         searchInput: {
-//             paddingRight: '40px',
-//             borderRadius: '20px',
-//             border: '1px solid gray',
-//         },
-//         searchInputFocus: {
-//             outline: 'none',
-//             borderColor: '#6e06b3',
-//             boxShadow: '0 0 1px 2px #f5f5f5',
-//         },
-//         searchIcon: {
-//             position: 'absolute',
-//             right: '15px',
-//             top: '50%',
-//             transform: 'translateY(-50%)',
-//             color: 'gray',
-//         },
-//         searchContainer: {
-//             position: 'relative',
-//             width: '45%',
-//             margin: '10px auto',
-//         }
-//     };
-
-//     return (
-//         <div style={styles.mainContainer} className='row'>
-//             <Sidebar />
-//             <div className='main-contentarea'>
-//                 <div style={styles.searchContainer}>
-//                     <input
-//                         type="text"
-//                         className="form-control"
-//                         style={isFocused ? { ...styles.searchInput, ...styles.searchInputFocus } : styles.searchInput}
-//                         onFocus={() => setIsFocused(true)}
-//                         onBlur={() => setIsFocused(false)}
-//                         placeholder="Search..."
-//                     />
-//                     <i className="bi bi-search" style={styles.searchIcon}></i>
-//                 </div>
-//                 <div className="file-upload-container">
-//                     <p className='upload-txt'>Upload Files</p>
-//                     <div className='file-upload'>
-//                         <div
-//                             className="upload-box"
-//                             onDragOver={handleDragOver}
-//                             onDrop={handleDrop}
-//                             onClick={handleUploadClick}
-//                         >
-//                             <input
-//                                 type="file"
-//                                 multiple
-//                                 ref={fileInputRef}
-//                                 style={{ display: 'none' }}
-//                                 onChange={handleFileInputChange}
-//                             />
-//                             <span style={{ margin: 'auto', color: 'gray', fontSize: '16' }}>Drag & drop files here or click to upload</span>
-//                         </div>
-//                         <div className='upload-btns'>
-//                             <span style={{ fontSize: 10, color: 'gray', }}>upload from*</span>
-//                             <button className="upload-btn" onClick={() => alert('coming soon!')}>
-//                                 <i className="bi bi-cloud-arrow-up-fill"></i> Google Drive
-//                             </button>
-//                             <button className="upload-btn" onClick={() => alert('coming soon!')}>
-//                                 <i className="bi bi-dropbox"></i> Drop Box
-//                             </button>
-//                         </div>
-//                     </div>
-//                 </div>
-//                 <div className="files-list">
-//                     {files.length > 0 ? (
-//                         files.map((file, index) => (
-//                             <div key={index} className="file-item">
-//                                 <div className="file-details">
-//                                     <p className="file-name">{file.name}</p>
-//                                     <p className="upload-time">{file.uploadTime}</p>
-//                                 </div>
-//                                 <div className="file-actions">
-//                                     <i className="bi bi-share" onClick={() => handleShareClick(index)}></i>
-//                                     {modalFileIndex === index && (
-//                                         <ShareModal
-//                                             show={showModal}
-//                                             handleClose={handleCloseModal}
-//                                             accessLink={file.accessLink}
-//                                             file={file}
-//                                         />
-//                                     )}
-//                                     <i className="bi bi-three-dots" onClick={() => alert('Options: Delete, Archive, Rename')}></i>
-//                                 </div>
-//                             </div>
-//                         ))
-//                     ) : (
-//                         <p>No files uploaded yet.</p>
-//                     )}
-//                 </div>
-
-//             </div>
-//         </div>
-//     );
-// }
-
-// export default Fileupload;
