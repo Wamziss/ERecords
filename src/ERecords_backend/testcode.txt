@@ -1,0 +1,371 @@
+//generate access link
+    // var fileMap: HashMap.HashMap<Text, FileInfo> = HashMap.HashMap(textHash, textEqual);
+    public func generateAccessLink(fileId: Text, accessTimeInSeconds: Int, sessionKey: Text): async Text {
+       let isValid = await verifySessionKey(sessionKey);
+
+    let currentTime = Time.now(); // Get current time in seconds
+    Debug.print("Current time: " # Int.toText(currentTime));
+
+    let currentTimeText = Int.toText(currentTime);
+    let accessExpiry = currentTime + accessTimeInSeconds; // Calculate expiry time in seconds
+
+    let uniqueId = Text.concat(fileId , currentTimeText);
+    let uniqueLink = uniqueId # "http://localhost:4943/?canisterId=bkyz2-fmaaa-aaaaa-qaaaq-cai/share/" # fileId;
+
+
+    let qrCodeUrl = generateQRCode(uniqueLink);
+     //  2024-08-23 08:32:29.616126567 UTC: [Canister bkyz2-fmaaa-aaaaa-qaaaq-cai] "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://localhost:4943/?canisterId=bkyz2-fmaaa-aaaaa-qaaaq-cai/share/1"
+
+    func intToNat(x: Int): Nat {
+        let accessExpiryTxt = Int.toText(x);
+        switch (Nat.fromText(accessExpiryTxt)) {
+            case (?value) {
+                value // Return the converted Nat value
+            };
+            case null {
+                0
+            };
+        }
+    };
+
+    // Usage example
+    let accessExpiryNat = intToNat(accessExpiry); // Convert Int to Nat
+
+        // Create the FileInfo with the converted Nat value
+        let fileInfo: FileInfo = {
+            id = fileId;
+            link = uniqueLink;
+            accessExpiry = accessExpiryNat;
+            qrCodeUrl = qrCodeUrl;
+        };
+
+
+        fileMap.put(fileId, fileInfo);
+
+        return uniqueLink;
+    };
+
+
+
+// first
+import Nat "mo:base/Nat";
+import Blob "mo:base/Blob";
+import Option "mo:base/Option";
+import Array "mo:base/Array";
+
+actor ERecords {
+
+    // A simple map to store files with a unique ID and their contents
+    stable var files: [(Nat, Blob)] = [];
+    
+    // Counter to assign unique IDs to each file
+    var fileCounter: Nat = 0;
+
+    // Function to upload a file and store it in the backend
+    public shared(msg) func uploadFile(fileContent: Blob): async Nat {
+        let fileId = fileCounter;
+        files := Array.append(files, [(fileId, fileContent)]);
+        fileCounter += 1;
+        return fileId;
+    };
+
+    // Function to retrieve a file by its ID
+    public query func getFile(fileId: Nat): async ?Blob {
+        let result = Array.find<(Nat, Blob)>(files, func(tuple) {
+            tuple.0 == fileId
+        });
+        
+        switch (result) {
+            case null { return null; };
+            case (?tuple) { return ?tuple.1; };
+        }
+    };
+
+    // Function to delete a file by its ID
+    public shared(msg) func deleteFile(fileId: Nat): async Bool {
+        let emptyBlob: Blob = Blob.fromArray([]);
+        let indexOpt = Array.indexOf<(Nat, Blob)>((fileId, emptyBlob), files, func(tuple1, tuple2) {
+            tuple1.0 == tuple2.0
+        });
+        
+        switch(indexOpt) {
+            case (?index) {
+                files := Array.filter<(Nat, Blob)>(files, func(tuple) {
+                    tuple.0 != fileId
+                });
+                return true;
+            };
+            case null {
+                return false;
+            };
+        };
+    };
+}
+// File share access
+    public func extendAccess(fileId: Text, additionalTimeInSeconds: Nat): async Text {
+        switch (fileMap.get(fileId)) {
+            case (?fileInfo) {
+                let currentTime = Time.now();
+                var newExpiry = fileInfo.accessExpiry + additionalTimeInSeconds;
+                var updatedFileInfo = fileInfo;
+                updatedFileInfo.accessExpiry := newExpiry;
+
+                fileMap.put(fileId, updatedFileInfo);
+                return "Access extended!";
+            };
+            case (_) {
+                return "File not found.";
+            };
+        }
+    };
+
+    public func revokeAccess(fileId: Text): async Text {
+        switch (fileMap.remove(fileId)) {
+            case (?_) {
+                return "Access revoked.";
+            };
+            case (_) {
+                return "File not found.";
+            };
+        }
+    };
+
+//worked
+import Nat "mo:base/Nat";
+import Blob "mo:base/Blob";
+import Time "mo:base/Time";
+import HashMap "mo:base/HashMap";
+import Array "mo:base/Array";
+import Text "mo:base/Text";
+import Int "mo:base/Int";
+import Char "mo:base/Char";
+
+actor ERecords {
+
+    type FileInfo = {
+        id: Text;
+        link: Text;
+        accessExpiry: Nat; // Store expiry in seconds
+    };
+
+    private func textHash(t: Text): Nat32 {
+        var hash: Nat32 = 0;
+        let charArray = Text.toArray(t).vals(); // Convert Text to an array of Char
+
+        // Iterate over each Char in the array
+        for (c in charArray) {
+            let charCodeNat32 = Char.toNat32(c); // Convert Char to Nat32
+            hash := (hash * 31) + charCodeNat32; // Update the hash
+        };
+
+        return hash;
+    };
+
+
+    private func textEqual(a: Text, b: Text): Bool {
+        return Text.equal(a, b);
+    };
+
+    // Initialize the HashMap correctly
+    // Initial capacity for the HashMap, you can adjust this value as needed
+    let initialCapacity: Nat = 100; 
+
+    // Create the HashMap with the correct arguments
+    var fileMap: HashMap.HashMap<Text, FileInfo> = HashMap.HashMap<Text, FileInfo>(100, textEqual, textHash );
+
+
+        // private func textEqual(t1: Text, t2: Text): Bool {
+        // return t1 == t2;
+        // };
+
+    // var fileMap: HashMap.HashMap<Text, FileInfo> = HashMap.HashMap(textHash, textEqual);
+
+    public func generateAccessLink(fileId: Text, accessTimeInSeconds: Nat): async Text {
+        let currentTime = Time.now(); // Get current time in seconds
+        let accessExpiry = currentTime + accessTimeInSeconds; // Calculate expiry time in seconds
+        let uniqueLink = "http://example.com/share/" # fileId;
+
+    func intToNat(x: Int): Nat {
+        let accessExpiryTxt = Int.toText(x);
+        switch (Nat.fromText(accessExpiryTxt)) {
+            case (?value) {
+                value // Return the converted Nat value
+            };
+            case null {
+                0
+            };
+        }
+    };
+
+    // Usage example
+    let accessExpiryNat = intToNat(accessExpiry); // Convert Int to Nat
+
+        // Create the FileInfo with the converted Nat value
+        let fileInfo: FileInfo = {
+            id = fileId;
+            link = uniqueLink;
+            accessExpiry = accessExpiryNat; // Use the Nat value
+        };
+
+
+        fileMap.put(fileId, fileInfo);
+
+        return uniqueLink;
+    };
+
+
+    public func isAccessValid(fileId: Text): async Bool {
+        switch (fileMap.get(fileId)) {
+            case (?fileInfo) {
+                let currentTime = Time.now();
+                return currentTime <= fileInfo.accessExpiry;
+            };
+            case (_) {
+                return false;
+            };
+        }
+    };
+
+    // A simple map to store files with a unique ID and their contents
+    stable var files: [(Nat, Blob)] = [];
+    
+    // Counter to assign unique IDs to each file
+    var fileCounter: Nat = 0;
+
+    // Function to upload a file and store it in the backend
+    public shared(msg) func uploadFile(fileContent: Blob): async Nat {
+        let fileId = fileCounter;
+        files := Array.append(files, [(fileId, fileContent)]);
+        fileCounter += 1;
+        return fileId;
+    };
+
+    // Function to retrieve a file by its ID
+    public query func getFile(fileId: Nat): async ?Blob {
+        let result = Array.find<(Nat, Blob)>(files, func(tuple) {
+            tuple.0 == fileId
+        });
+        
+        switch (result) {
+            case null { return null; };
+            case (?tuple) { return ?tuple.1; };
+        }
+    };
+
+    // Function to delete a file by its ID
+    public shared(msg) func deleteFile(fileId: Nat): async Bool {
+        let emptyBlob: Blob = Blob.fromArray([]);
+        let indexOpt = Array.indexOf<(Nat, Blob)>((fileId, emptyBlob), files, func(tuple1, tuple2) {
+            tuple1.0 == tuple2.0
+        });
+        
+        switch(indexOpt) {
+            case (?index) {
+                files := Array.filter<(Nat, Blob)>(files, func(tuple) {
+                    tuple.0 != fileId
+                });
+                return true;
+            };
+            case null {
+                return false;
+            };
+        };
+    };
+}
+
+// other
+
+import Nat "mo:base/Nat";
+import Blob "mo:base/Blob";
+import Array "mo:base/Array";
+import Text "mo:base/Text";
+
+actor ERecords {
+
+    // Use `var` instead of `stable var` if you are updating in-memory data
+    var filesByUserId: [(Text, [(Nat, Blob)])] = [];
+
+    // Counter to assign unique IDs to each file
+    var fileCounter: Nat = 0;
+
+    // Function to upload a file and store it by user ID
+    public shared(msg) func uploadFile(userId: Text, fileContent: Blob): async Nat {
+        let fileId = fileCounter;
+
+        // Retrieve or initialize user files
+        var userFiles = switch (Array.find<(Text, [(Nat, Blob)])>(filesByUserId, func(tuple) {
+            tuple.0 == userId
+        })) {
+            case null { [] };
+            case (?tuple) { tuple.1 };
+        };
+
+        // Append the new file
+        let newUserFiles = Array.append(userFiles, [(fileId, fileContent)]);
+
+        // Update the filesByUserId mapping
+        let newFilesByUserId = Array.filter<(Text, [(Nat, Blob)])>(filesByUserId, func(tuple) {
+            tuple.0 != userId
+        });
+        newFilesByUserId := Array.append(newFilesByUserId, [(userId, newUserFiles)]);
+        filesByUserId := newFilesByUserId;
+
+        // Update fileCounter
+        fileCounter += 1;
+        return fileId;
+    };
+
+    // Function to retrieve a file by its ID for a specific user
+    public query func getFile(userId: Text, fileId: Nat): async ?Blob {
+        let userFiles = switch (Array.find<(Text, [(Nat, Blob)])>(filesByUserId, func(tuple) {
+            tuple.0 == userId
+        })) {
+            case null { [] };
+            case (?tuple) { tuple.1 };
+        };
+        
+        let result = Array.find<(Nat, Blob)>(userFiles, func(tuple) {
+            tuple.0 == fileId
+        });
+        
+        switch (result) {
+            case null { return null; };
+            case (?tuple) { return ?tuple.1; };
+        }
+    };
+
+    // Function to delete a file by its ID for a specific user
+    public shared(msg) func deleteFile(userId: Text, fileId: Nat): async Bool {
+        var userFiles = switch (Array.find<(Text, [(Nat, Blob)])>(filesByUserId, func(tuple) {
+            tuple.0 == userId
+        })) {
+            case null { [] };
+            case (?tuple) { tuple.1 };
+        };
+        var indexOpt = Array.indexOf<(Nat, Blob)>((fileId, Blob.fromArray([])), userFiles, func(tuple1, tuple2) {
+            tuple1.0 == tuple2.0
+        });
+
+        switch (indexOpt) {
+            case (?index) {
+                // Remove the file
+                let updatedUserFiles = Array.filter<(Nat, Blob)>(userFiles, func(tuple) {
+                    tuple.0 != fileId
+                });
+
+                // Update the filesByUserId mapping
+                let newFilesByUserId = Array.filter<(Text, [(Nat, Blob)])>(filesByUserId, func(tuple) {
+                    tuple.0 != userId
+                });
+                newFilesByUserId := Array.append(newFilesByUserId, [(userId, updatedUserFiles)]);
+                filesByUserId := newFilesByUserId;
+                return true;
+            };
+            case null {
+                return false;
+            };
+        }
+    };
+} 
+
+

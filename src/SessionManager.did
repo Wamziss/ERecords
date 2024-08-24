@@ -1,0 +1,6 @@
+// SessionManager.did
+module {
+  public func createSession(principal: Principal): async Text;
+  public func getSession(sessionId: Text): async Principal;
+  public func deleteSession(sessionId: Text): async Bool;
+}
