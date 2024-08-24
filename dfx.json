@@ -25,6 +25,10 @@
     "ic": {
       "providers": ["https://ic0.app"],
       "wallet_canister": "mngtr-gaaaa-aaaal-qjqfa-cai"
+    }, 
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
     }
   },
   "output_env_file": ".env",

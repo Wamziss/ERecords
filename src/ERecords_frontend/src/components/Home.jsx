@@ -15,20 +15,23 @@ function Home() {
     const handleSignIn = async (event) => {
         event.preventDefault();
         try {
-          const authClient = await AuthClient.create();
-          await authClient.login({
-            identityProvider: process.env.II_URL,
-            onSuccess: () => {
-              console.log("Logged in!");
-              window.location.href = "/Files"; // Change the URL to navigate to the "/UserManagement" page
-            },
-          }).catch((error) => {
-            console.error("Login failed:", error);
-          });
+            const authClient = await AuthClient.create();
+    
+            // Log in and handle success and failure
+            authClient.login({
+                identityProvider: process.env.II_URL,
+                onSuccess: async (response) => {
+                    console.log("Logged in!");
+                    window.location.href ='/Files';
+                },
+                onError: (error) => {
+                    console.error("Login failed:", error);
+                },
+            });
         } catch (error) {
-          console.error("AuthClient creation failed:", error);
+            console.error("AuthClient creation failed:", error);
         }
-      };
+    };
 
     return (
         <div className="landing-page">
