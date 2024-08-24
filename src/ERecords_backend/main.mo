@@ -17,6 +17,53 @@ actor ERecords {
         qrCodeUrl: Text;
     };
 
+    // working file handling
+// A simple map to store files with a unique ID and their contents
+    stable var files: [(Nat, Blob)] = [];
+    
+    // Counter to assign unique IDs to each file
+    var fileCounter: Nat = 0;
+
+    // Function to upload a file and store it in the backend
+    public shared(_msg) func uploadFile(fileName: Text, fileContent: Blob): async Nat {
+        let fileId = fileCounter;
+        files := Array.append(files, [(fileId, fileContent)]);
+        fileCounter += 1;
+        return fileId;
+    };
+
+    // Function to retrieve a file by its ID
+    public query func getFile(fileId: Nat): async ?Blob {
+        let result = Array.find<(Nat, Blob)>(files, func(tuple) {
+            tuple.0 == fileId
+        });
+        
+        switch (result) {
+            case null { return null; };
+            case (?tuple) { return ?tuple.1; };
+        }
+    };
+
+    // Function to delete a file by its ID
+    public shared(_msg) func deleteFile(fileId: Nat): async Bool {
+        let emptyBlob: Blob = Blob.fromArray([]);
+        let indexOpt = Array.indexOf<(Nat, Blob)>((fileId, emptyBlob), files, func(tuple1, tuple2) {
+            tuple1.0 == tuple2.0
+        });
+        
+        switch(indexOpt) {
+            case (?_index) {
+                files := Array.filter<(Nat, Blob)>(files, func(tuple) {
+                    tuple.0 != fileId
+                });
+                return true;
+            };
+            case null {
+                return false;
+            };
+        };
+    };
+
     private func textHash(t: Text): Nat32 {
         var hash: Nat32 = 0;
         let charArray = Text.toArray(t).vals(); // Convert Text to an array of Char
@@ -171,50 +218,5 @@ public func generateAccessLink(fileId: Text, accessTimeInSeconds: Int, sessionKe
         }
     };
 
-// working file handling
-// A simple map to store files with a unique ID and their contents
-    stable var files: [(Nat, Blob)] = [];
-    
-    // Counter to assign unique IDs to each file
-    var fileCounter: Nat = 0;
 
-    // Function to upload a file and store it in the backend
-    public shared(_msg) func uploadFile(fileContent: Blob): async Nat {
-        let fileId = fileCounter;
-        files := Array.append(files, [(fileId, fileContent)]);
-        fileCounter += 1;
-        return fileId;
-    };
-
-    // Function to retrieve a file by its ID
-    public query func getFile(fileId: Nat): async ?Blob {
-        let result = Array.find<(Nat, Blob)>(files, func(tuple) {
-            tuple.0 == fileId
-        });
-        
-        switch (result) {
-            case null { return null; };
-            case (?tuple) { return ?tuple.1; };
-        }
-    };
-
-    // Function to delete a file by its ID
-    public shared(_msg) func deleteFile(fileId: Nat): async Bool {
-        let emptyBlob: Blob = Blob.fromArray([]);
-        let indexOpt = Array.indexOf<(Nat, Blob)>((fileId, emptyBlob), files, func(tuple1, tuple2) {
-            tuple1.0 == tuple2.0
-        });
-        
-        switch(indexOpt) {
-            case (?_index) {
-                files := Array.filter<(Nat, Blob)>(files, func(tuple) {
-                    tuple.0 != fileId
-                });
-                return true;
-            };
-            case null {
-                return false;
-            };
-        };
-    };
 }

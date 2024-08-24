@@ -11,18 +11,20 @@ import { AuthClient } from '@dfinity/auth-client';
 import decentralized from '../assets/decentralized.jpg'
 
 function Home() {
-
     const handleSignIn = async (event) => {
         event.preventDefault();
         try {
             const authClient = await AuthClient.create();
     
-            // Log in and handle success and failure
             authClient.login({
                 identityProvider: process.env.II_URL,
                 onSuccess: async (response) => {
                     console.log("Logged in!");
-                    window.location.href ='/Files';
+    
+                    // Store the authenticated actor
+                    const identity = authClient.getIdentity();
+                    window.sessionStorage.setItem('identity', JSON.stringify(identity));
+                    window.location.href = '/Files';
                 },
                 onError: (error) => {
                     console.error("Login failed:", error);
