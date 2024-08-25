@@ -12,14 +12,12 @@ import Button from 'react-bootstrap/Button';
 import { Actor, HttpAgent} from '@dfinity/agent';
 import { DelegationIdentity } from '@dfinity/identity';
 import { idlFactory } from '../../../../declarations/ERecords_backend/ERecords_backend.did.js';
-
+import { useAuth } from '../../AuthContext.jsx';
 
 const agent = new HttpAgent();
 // const erecords = Actor.createActor(idlFactory, { agent, canisterId });
 
-const generateUniqueToken = () => {
-    return Math.random().toString(36).substr(2, 11);
-};
+
 
 function Fileupload() {
     const [files, setFiles] = useState([]);
@@ -34,7 +32,7 @@ function Fileupload() {
     const accessLink = "Accesslink://accesslink"; 
     const [filesMap, setFilesMap] = useState(new Map());
     const [modalFileId, setModalFileId] = useState(null);
-
+    const authClient = useAuth();
     // const handleShareClick = (index) => {
     //     setModalFileIndex(index);
     //     setShowShareModal(true);
@@ -93,67 +91,123 @@ function Fileupload() {
     };
 
     const getAuthenticatedActor = () => {
-        const identityJson = window.sessionStorage.getItem('identity');
-
+        if (!authClient) {
+            throw new Error("User is not authenticated. Please sign in first.");
+        }
+    
+        const identity = authClient.getIdentity(); // Get the identity directly from the AuthClient instance
         const canisterId = import.meta.env.VITE_CANISTER_ID;
         
+        console.log("Hurray!:", identity.getPrincipal().toText());
+
         if (!canisterId) {
             throw new Error('Canister ID is not defined');
         }
     
-        if (identityJson) {
-            const identity = JSON.parse(identityJson);
-    
-            try {
-                const agent = new HttpAgent({ identity });
-                return Actor.createActor(idlFactory, { agent, canisterId });
-            } catch (error) {
-                console.error("Failed to create actor:", error);
-                throw error;
-            }
+        try {
+            const agent = new HttpAgent({ host: 'http://localhost:8000', identity });
+            return Actor.createActor(idlFactory, { agent, canisterId });
+        } catch (error) {
+            console.error("Failed to create actor:", error);
+            throw error;
         }
-
-        
-        
     };
-
+    
     const handleFilesUpload = async (uploadedFiles) => {
         const actor = getAuthenticatedActor();
         try {
-          const newFilesMap = new Map(filesMap);
-          const newFiles = Array.from(uploadedFiles).map(file => {
-              const fileId = generateUniqueToken(); // Implement your unique token generation
-              return {
-                  id: fileId,
-                  name: file.name,
-                  uploadTime: new Date().toLocaleString(),
-                  fileData: file
-              };
-          });
-  
-          newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
-          setFilesMap(newFilesMap);
-          setFiles([...files, ...newFiles]);
-      
-          for (const file of newFiles) {
-            const arrayBuffer = await file.fileData.arrayBuffer();
-            // const fileBlob = new Blob([arrayBuffer]); // Convert to Blob type
-            const fileBlob = new Uint8Array(arrayBuffer);
-            let folder = "Uploaded Files";
-        
-            try {
-                // await actor.uploadFile(fileBlob, file.name, folder);
-                console.log("File ", file.name, " uploaded...but not to backend😒");
-            } catch (error) {
-                console.error("Error is:", error)
+            const newFilesMap = new Map(filesMap);
+            const newFiles = Array.from(uploadedFiles).map(file => {
+                const fileId = generateUniqueToken(); // Implement your unique token generation
+                return {
+                    id: fileId,
+                    name: file.name,
+                    uploadTime: new Date().toLocaleString(),
+                    fileData: file
+                };
+            });
+    
+            newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
+            setFilesMap(newFilesMap);
+            setFiles([...files, ...newFiles]);
+    
+            for (const file of newFiles) {
+                const arrayBuffer = await file.fileData.arrayBuffer();
+                const fileBlob = new Uint8Array(arrayBuffer);
+                let folder = "Uploaded Files";
+    
+                try {
+                    await actor.uploadFile(fileBlob, file.name, folder);
+                } catch (error) {
+                    console.error("Error is:", error)
+                }
             }
+        } catch (error) {
+            console.error('File upload failed:', error);
         }
+    };    
+
+    // const getAuthenticatedActor = () => {
+    //     const identityJson = window.sessionStorage.getItem('identity');
+
+    //     const canisterId = import.meta.env.VITE_CANISTER_ID;
+        
+    //     if (!canisterId) {
+    //         throw new Error('Canister ID is not defined');
+    //     }
+    
+    //     if (identityJson) {
+    //         const identity = JSON.parse(identityJson);
+    
+    //         try {
+    //             const agent = new HttpAgent({ identity });
+    //             return Actor.createActor(idlFactory, { agent, canisterId });
+    //         } catch (error) {
+    //             console.error("Failed to create actor:", error);
+    //             throw error;
+    //         }
+    //     }
+
+        
+        
+    // };
+
+    // const handleFilesUpload = async (uploadedFiles) => {
+    //     const actor = getAuthenticatedActor();
+    //     try {
+    //       const newFilesMap = new Map(filesMap);
+    //       const newFiles = Array.from(uploadedFiles).map(file => {
+    //           const fileId = generateUniqueToken(); // Implement your unique token generation
+    //           return {
+    //               id: fileId,
+    //               name: file.name,
+    //               uploadTime: new Date().toLocaleString(),
+    //               fileData: file
+    //           };
+    //       });
+  
+    //       newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
+    //       setFilesMap(newFilesMap);
+    //       setFiles([...files, ...newFiles]);
+      
+    //       for (const file of newFiles) {
+    //         const arrayBuffer = await file.fileData.arrayBuffer();
+    //         // const fileBlob = new Blob([arrayBuffer]); // Convert to Blob type
+    //         const fileBlob = new Uint8Array(arrayBuffer);
+    //         let folder = "Uploaded Files";
+        
+    //         try {
+    //             await actor.uploadFile(fileBlob, file.name, folder);
+    //         } catch (error) {
+    //             console.error("Error is:", error)
+    //         }
+    //     }
         
       
-        } catch (error) {
-          console.error('File upload failed:', error);
-        }
-      };
+    //     } catch (error) {
+    //       console.error('File upload failed:', error);
+    //     }
+    //   };
     
 
     const handleFileInputChange = (event) => {
@@ -291,6 +345,10 @@ function Fileupload() {
 }
 
 export default Fileupload;
+
+const generateUniqueToken = () => {
+    return Math.random().toString(36).substr(2, 11);
+};
 
 
 

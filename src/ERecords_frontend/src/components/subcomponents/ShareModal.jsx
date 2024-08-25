@@ -18,7 +18,6 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
     const [countdown, setCountdown] = useState(0);
     const [accessLink, setAccessLink] = useState('');
     const [qrCodeValue, setQrCodeValue] = useState('');
-    const [fileContent, setFileContent] = useState('');
 
     useEffect(() => {
         // Calculate total countdown time
@@ -57,6 +56,7 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
         if (file) {
             const reader = new FileReader();
             reader.onload = () => {
+                console.log(file.type);
                 if (file.type === 'application/pdf') {
                     const arrayBuffer = reader.result;
                     pdfjsLib.getDocument(arrayBuffer).promise.then(pdf => {
@@ -70,31 +70,61 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
                         setQrCodeValue('Error reading file content.');
                     });
                 } 
-                // else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                //     try {
-                //         const arrayBuffer = reader.result;
-                //         const result = mammoth.extractRawText({ arrayBuffer });
-                //         setFileContent(result.value);
-                //     } catch (error) {
-                //         console.error('Error reading .docx file:', error);
-                //         setFileContent('Error reading file content.');
-                //     }
-                // } 
+                else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                    try {
+                        const arrayBuffer = reader.result;
+                        
+                        const processDocxFile = async () => {
+                            const result = await mammoth.extractRawText({ arrayBuffer });
+                            const textContent = result.value;
+                
+                            const CHUNK_SIZE = 200; // Adjust chunk size based on testing
+                            let processedContent = '';
+                            let maxLength = 2000; // Maximum length for the processed content
+                
+                            // Split the text into smaller chunks
+                            for (let i = 0; i < textContent.length; i += CHUNK_SIZE) {
+                                let chunk = textContent.substring(i, i + CHUNK_SIZE);
+                                
+                                // Encode the chunk
+                                let encodedChunk = encodeURIComponent(chunk);
+                
+                                // Check if adding this chunk exceeds maxLength
+                                if (processedContent.length + encodedChunk.length > maxLength) {
+                                    break;
+                                }
+                
+                                processedContent += encodedChunk;
+                            }
+                
+                            // Set the processed content
+                            setQrCodeValue(processedContent);
+                        };
+                
+                        processDocxFile();
+                
+                    } catch (error) {
+                        console.error('Error reading .docx file:', error);
+                        setQrCodeValue('Error reading file content.');
+                    }
+                }
+                
+                             
                 // else if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
                 //     const arrayBuffer = reader.result;
                 //     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 //     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 //     const data = XLSX.utils.sheet_to_html(worksheet);
-                //     setFileContent(data); // Display the sheet as HTML
+                //     setQrCodeValue(data); // Display the sheet as HTML
                 // } 
                 else {
                     // Handle other file types as text
-                    setFileContent(reader.result);
+                    setQrCodeValue(reader.result);
                 }
-                setQrCodeValue("Shared file:", fileContent);
+                setQrCodeValue("Shared file:", reader.result);
             };
             reader.readAsArrayBuffer(file);
-            // setQrCodeValue("Shared file:", fileContent);
+            setQrCodeValue("Shared file:", reader.result);
         }
     }, [fileId, filesMap]);
 

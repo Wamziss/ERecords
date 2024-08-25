@@ -8,35 +8,38 @@ import blockchain from '../assets/blockchain.jpg'
 import share from '../assets/share.jpg'
 import access from '../assets/access.jpg'
 import { AuthClient } from '@dfinity/auth-client';
-import decentralized from '../assets/decentralized.jpg'
+import decentralized from '../assets/decentralized.jpg';
+import { useAuth } from '../AuthContext';
 
 function Home() {
+    const authClient = useAuth();
+
     const handleSignIn = async (event) => {
         event.preventDefault();
-        try {
-            const authClient = await AuthClient.create();
-    
-            authClient.login({
-                identityProvider: process.env.II_URL,
-                onSuccess: async (response) => {
-                    console.log("Logged in!");
-    
-                    // Store the authenticated actor
-                    const identity = authClient.getIdentity();
-                    window.sessionStorage.setItem('identity', JSON.stringify(identity));
-                    window.location.href = '/Files';
-                    
-                    console.log();
-                    
-                },
-                onError: (error) => {
-                    console.error("Login failed:", error);
-                },
-            });
-        } catch (error) {
-            console.error("AuthClient creation failed:", error);
+        if (authClient) {
+            try {
+                authClient.login({
+                    identityProvider: process.env.II_URL,
+                    onSuccess: async () => {
+                        console.log("Logged in!");
+
+                        const identity = authClient.getIdentity();
+                        console.log(identity.getPrincipal().toText());
+                        window.location.href = './Files';
+
+                        // Optional
+                        // window.sessionStorage.setItem('identity', JSON.stringify(identity));
+                    },
+                    onError: (error) => {
+                        console.error("Login failed:", error);
+                    },
+                });
+            } catch (error) {
+                console.error("AuthClient login failed:", error);
+            }
         }
     };
+    
 
     return (
         <div className="landing-page">
