@@ -9,12 +9,17 @@ import { AuthClient } from '@dfinity/auth-client';
 import { createActor } from '../../../../declarations/ERecords_backend';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
-import { Actor, HttpAgent } from '@dfinity/agent';
+import { Actor, HttpAgent} from '@dfinity/agent';
+import { DelegationIdentity } from '@dfinity/identity';
 import { idlFactory } from '../../../../declarations/ERecords_backend/ERecords_backend.did.js';
 
-const canisterId = import.meta.env.VITE_CANISTER_ID;
+
 const agent = new HttpAgent();
 // const erecords = Actor.createActor(idlFactory, { agent, canisterId });
+
+const generateUniqueToken = () => {
+    return Math.random().toString(36).substr(2, 11);
+};
 
 function Fileupload() {
     const [files, setFiles] = useState([]);
@@ -26,23 +31,26 @@ function Fileupload() {
     const [sharedFiles, setSharedFiles] = useState([]);
     const [archivedFiles, setArchivedFiles] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
-    const accessLink = "Accesslink://accesslink"; // Placeholder for dynamic generation
+    const accessLink = "Accesslink://accesslink"; 
+    const [filesMap, setFilesMap] = useState(new Map());
+    const [modalFileId, setModalFileId] = useState(null);
 
     // const handleShareClick = (index) => {
     //     setModalFileIndex(index);
     //     setShowShareModal(true);
     // };
-    const handleShareClick = (index) => {
+    const handleShareClick = (fileId) => {
         
-        const file = files[index];
-        const sharedFiles = JSON.parse(localStorage.getItem('sharedFiles')) || [];
-        sharedFiles.push({
-            name: file.name,
-            sharedTime: new Date().toLocaleString(),
-        });
-        localStorage.setItem('sharedFiles', JSON.stringify(sharedFiles));
-        setModalFileIndex(index);
+        // const file = files[index];
+        // const sharedFiles = JSON.parse(localStorage.getItem('sharedFiles')) || [];
+        // sharedFiles.push({
+        //     name: file.name,
+        //     sharedTime: new Date().toLocaleString(),
+        // });
+        // localStorage.setItem('sharedFiles', JSON.stringify(sharedFiles));
+        // setModalFileIndex(index);
         setShowShareModal(true);
+        setModalFileId(fileId);
         
     };
     
@@ -52,8 +60,8 @@ function Fileupload() {
         setModalFileIndex(null);
     };
 
-    const handleOptionsClick = (index) => {
-        setSelectedFile(index);
+    const handleOptionsClick = (fileId) => {
+        setSelectedFile(fileId);
         setShowOptionsModal(true);
     };
 
@@ -86,42 +94,67 @@ function Fileupload() {
 
     const getAuthenticatedActor = () => {
         const identityJson = window.sessionStorage.getItem('identity');
+
+        const canisterId = import.meta.env.VITE_CANISTER_ID;
+        
+        if (!canisterId) {
+            throw new Error('Canister ID is not defined');
+        }
+    
         if (identityJson) {
             const identity = JSON.parse(identityJson);
-            const agent = new HttpAgent({ identity });
-            return Actor.createActor(idlFactory, { agent, canisterId });
+    
+            try {
+                const agent = new HttpAgent({ identity });
+                return Actor.createActor(idlFactory, { agent, canisterId });
+            } catch (error) {
+                console.error("Failed to create actor:", error);
+                throw error;
+            }
         }
-        throw new Error('User is not authenticated');
+
+        
+        
     };
 
     const handleFilesUpload = async (uploadedFiles) => {
         const actor = getAuthenticatedActor();
         try {
-          const newFiles = Array.from(uploadedFiles).map(file => ({
-            name: file.name,
-            uploadTime: new Date().toLocaleString(),
-            fileData: file
-          }));
-      
+          const newFilesMap = new Map(filesMap);
+          const newFiles = Array.from(uploadedFiles).map(file => {
+              const fileId = generateUniqueToken(); // Implement your unique token generation
+              return {
+                  id: fileId,
+                  name: file.name,
+                  uploadTime: new Date().toLocaleString(),
+                  fileData: file
+              };
+          });
+  
+          newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
+          setFilesMap(newFilesMap);
           setFiles([...files, ...newFiles]);
       
-          // Create AuthClient and get identity
-          const authClient = await AuthClient.create();
-          const identity = authClient.getIdentity();
-      
-        
-      
-          // Upload each file to the backend canister
           for (const file of newFiles) {
             const arrayBuffer = await file.fileData.arrayBuffer();
+            // const fileBlob = new Blob([arrayBuffer]); // Convert to Blob type
             const fileBlob = new Uint8Array(arrayBuffer);
-            await actor.uploadFile(file.name, fileBlob);
-          }
+            let folder = "Uploaded Files";
+        
+            try {
+                // await actor.uploadFile(fileBlob, file.name, folder);
+                console.log("File ", file.name, " uploaded...but not to backend😒");
+            } catch (error) {
+                console.error("Error is:", error)
+            }
+        }
+        
       
         } catch (error) {
           console.error('File upload failed:', error);
         }
       };
+    
 
     const handleFileInputChange = (event) => {
         handleFilesUpload(event.target.files);
@@ -219,18 +252,23 @@ function Fileupload() {
                     </div>
                 </div>
                 <div className="files-list">
-                    {files.map((file, index) => (
-                        <div key={index} className="file-item">
+                    {files.map((file, fileId) => (
+                        <div key={file.id} className="file-item">
                             <div className="file-details">
                                 <p className="file-name">{file.name}</p>
                                 <p className="upload-time">{file.uploadTime}</p>
                             </div>
                             <div className="file-actions">
-                                <i className="bi bi-share" onClick={() => handleShareClick(index)}></i>
-                                {modalFileIndex === index && (
-                                    <ShareModal show={showShareModal} handleClose={handleCloseShareModal} accessLink={accessLink} />
+                                <i className="bi bi-share" onClick={() => handleShareClick(file.id)}></i>
+                                {modalFileId && (
+                                    <ShareModal
+                                        show={showShareModal}
+                                        handleClose={handleCloseShareModal}
+                                        fileId={modalFileId}
+                                        filesMap={filesMap} 
+                                    />
                                 )}
-                                <i className="bi bi-three-dots" onClick={() => handleOptionsClick(index)}></i>
+                                <i className="bi bi-three-dots" onClick={() => handleOptionsClick(fileId)}></i>
                             </div>
                         </div>
                     ))}

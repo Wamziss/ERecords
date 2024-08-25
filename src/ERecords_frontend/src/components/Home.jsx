@@ -25,6 +25,9 @@ function Home() {
                     const identity = authClient.getIdentity();
                     window.sessionStorage.setItem('identity', JSON.stringify(identity));
                     window.location.href = '/Files';
+                    
+                    console.log();
+                    
                 },
                 onError: (error) => {
                     console.error("Login failed:", error);

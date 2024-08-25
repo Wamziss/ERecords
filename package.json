@@ -19,14 +19,16 @@
     "@dfinity/agent": "^2.0.0",
     "@dfinity/auth-client": "^2.0.0",
     "@dfinity/candid": "^2.0.0",
+    "@dfinity/principal": "^2.0.0",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
     "mammoth": "^1.8.0",
-    "pdfjs-dist": "^4.5.136",
+    "pdfjs-dist": "^3.6.172",
     "qrcode.react": "^3.1.0",
     "react-bootstrap": "^2.10.4",
     "react-pdf": "^9.1.0",
     "react-router-dom": "^6.26.1",
+    "vite": "^5.4.2",
     "xlsx": "^0.18.5"
   }
 }

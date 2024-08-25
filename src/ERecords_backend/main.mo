@@ -1,222 +1,192 @@
-    import Nat "mo:base/Nat";
+import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
+import Text "mo:base/Text";
 import Time "mo:base/Time";
 import HashMap "mo:base/HashMap";
+import Iter "mo:base/Iter";
 import Array "mo:base/Array";
-import Text "mo:base/Text";
-import Int "mo:base/Int";
-import Char "mo:base/Char";
-import Debug "mo:base/Debug";
+import Hash "mo:base/Hash";
 
 actor ERecords {
-
-    type FileInfo = {
-        id: Text;
-        link: Text;
-        accessExpiry: Nat; // Store expiry in seconds
-        qrCodeUrl: Text;
+    // File structure
+    type File = {
+        id: Nat;
+        content: Blob;
+        name: Text;
+        folder: Text;
+        uploadTime: Time.Time;
+        shareExpiry: ?Time.Time;
+        isArchived: Bool;
     };
 
-    // working file handling
-// A simple map to store files with a unique ID and their contents
-    stable var files: [(Nat, Blob)] = [];
-    
+    // Stable storage for files
+    private stable var fileEntries: [(Nat, File)] = [];
+    private var files = HashMap.HashMap<Nat, File>(0, Nat.equal, Hash.hash);
+
     // Counter to assign unique IDs to each file
-    var fileCounter: Nat = 0;
+    private stable var fileCounter: Nat = 0;
 
     // Function to upload a file and store it in the backend
-    public shared(_msg) func uploadFile(fileName: Text, fileContent: Blob): async Nat {
+    public shared func uploadFile(fileContent: Blob, fileName: Text, folder: Text): async Nat {
         let fileId = fileCounter;
-        files := Array.append(files, [(fileId, fileContent)]);
+        let newFile: File = {
+            id = fileId;
+            content = fileContent;
+            name = fileName;
+            folder = folder;
+            uploadTime = Time.now();
+            shareExpiry = null;
+            isArchived = false;
+        };
+        files.put(fileId, newFile);
         fileCounter += 1;
-        return fileId;
+        fileId
     };
 
     // Function to retrieve a file by its ID
-    public query func getFile(fileId: Nat): async ?Blob {
-        let result = Array.find<(Nat, Blob)>(files, func(tuple) {
-            tuple.0 == fileId
-        });
-        
-        switch (result) {
-            case null { return null; };
-            case (?tuple) { return ?tuple.1; };
-        }
+    public query func getFile(fileId: Nat): async ?File {
+        files.get(fileId)
     };
 
     // Function to delete a file by its ID
-    public shared(_msg) func deleteFile(fileId: Nat): async Bool {
-        let emptyBlob: Blob = Blob.fromArray([]);
-        let indexOpt = Array.indexOf<(Nat, Blob)>((fileId, emptyBlob), files, func(tuple1, tuple2) {
-            tuple1.0 == tuple2.0
+    public shared func deleteFile(fileId: Nat): async Bool {
+        switch (files.remove(fileId)) {
+            case null { false };
+            case (?_) { true };
+        }
+    };
+
+    // Function to generate a QR code for sharing files (placeholder)
+    public func generateQRCode(fileId: Nat): async Text {
+        // In a real implementation, you would use a QR code generation library
+        // For now, we'll return a placeholder string
+        "QR_CODE_FOR_FILE_" # Nat.toText(fileId)
+    };
+
+    // Function to set or extend access timer for shared files
+    public func setShareExpiry(fileId: Nat, expiryTime: Time.Time): async Bool {
+        switch (files.get(fileId)) {
+            case null { false };
+            case (?file) {
+                let updatedFile = {
+                    id = file.id;
+                    content = file.content;
+                    name = file.name;
+                    folder = file.folder;
+                    uploadTime = file.uploadTime;
+                    shareExpiry = ?expiryTime;
+                    isArchived = file.isArchived;
+                };
+                files.put(fileId, updatedFile);
+                true
+            };
+        }
+    };
+
+    // Function to revoke access to a shared file
+    public func revokeAccess(fileId: Nat): async Bool {
+        switch (files.get(fileId)) {
+            case null { false };
+            case (?file) {
+                let updatedFile = {
+                    id = file.id;
+                    content = file.content;
+                    name = file.name;
+                    folder = file.folder;
+                    uploadTime = file.uploadTime;
+                    shareExpiry = null;
+                    isArchived = file.isArchived;
+                };
+                files.put(fileId, updatedFile);
+                true
+            };
+        }
+    };
+
+    // Function to search for records
+    public func searchFiles(searchTerm: Text) : async [File] {
+        let lowercaseSearchTerm = Text.toLowercase(searchTerm);
+        
+        let searchResults = Array.filter<File>(Iter.toArray(files.vals()), func (file: File) : Bool {
+            let lowercaseFileName = Text.toLowercase(file.name);
+            Text.contains(lowercaseFileName, #text lowercaseSearchTerm)
         });
         
-        switch(indexOpt) {
-            case (?_index) {
-                files := Array.filter<(Nat, Blob)>(files, func(tuple) {
-                    tuple.0 != fileId
-                });
-                return true;
-            };
-            case null {
-                return false;
-            };
-        };
+        searchResults
     };
 
-    private func textHash(t: Text): Nat32 {
-        var hash: Nat32 = 0;
-        let charArray = Text.toArray(t).vals(); // Convert Text to an array of Char
-
-        // Iterate over each Char in the array
-        for (c in charArray) {
-            let charCodeNat32 = Char.toNat32(c); // Convert Char to Nat32
-            hash := (hash * 31) + charCodeNat32; // Update the hash
-        };
-
-        return hash;
-    };
-
-
-    private func textEqual(a: Text, b: Text): Bool {
-        return Text.equal(a, b);
-    };
-
-    // Initialize the HashMap correctly
-    // Initial capacity for the HashMap, you can adjust this value as needed
-    let initialCapacity: Nat = 100; 
-    
-
-    // Create the HashMap with the correct arguments
-    var fileMap: HashMap.HashMap<Text, FileInfo> = HashMap.HashMap<Text, FileInfo>(initialCapacity, textEqual, textHash );
-
-
-        // private func textEqual(t1: Text, t2: Text): Bool {
-        // return t1 == t2;
-        // };
-
-
-    // Add a function to verify the session key
-    var sessionKeys: HashMap.HashMap<Text, Nat> = HashMap.HashMap<Text, Nat>(initialCapacity, textEqual, textHash);
-
-    // Function to add a session key (for example purposes)
-    public func addSessionKey(sessionKey: Text, userId: Nat): async Text {
-    var MAX_SESSION_KEY_SIZE: Nat = 64;
-    var MAX_USER_ID: Nat = 1_000_000;
-
-    // Validate sessionKey length
-    if (Text.size(sessionKey) > MAX_SESSION_KEY_SIZE) {
-        return "Session key too long";
-    };
-
-    // Validate userId
-    if (userId > MAX_USER_ID) {
-        return "User ID too large";
-
-    };
-
-    // Store the session key with an associated user ID
-    sessionKeys.put(sessionKey, userId);
-    return "Session key added";
-    };
-
-    // Function to verify a session key
-    public func verifySessionKey(sessionKey: Text): async Bool {
-        // Check if the session key exists in the in-memory storage
-        let isvalid = true;
-        let isntvalid = false;
-        switch (sessionKeys.get(sessionKey)) {
-            case (?_) {
-                // Session key is valid
-                isvalid;
-            };
-            case null {
-                // Session key is not valid
-               isntvalid
+    // Function to move a file to a different folder
+    public func moveFile(fileId: Nat, newFolder: Text): async Bool {
+        switch (files.get(fileId)) {
+            case null { false };
+            case (?file) {
+                let updatedFile = {
+                    id = file.id;
+                    content = file.content;
+                    name = file.name;
+                    folder = newFolder;
+                    uploadTime = file.uploadTime;
+                    shareExpiry = file.shareExpiry;
+                    isArchived = file.isArchived;
+                };
+                files.put(fileId, updatedFile);
+                true
             };
         }
     };
 
-    private func generateQRCode(data: Text): Text {
-    let qrCodeServiceUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=";
-    let qrCodeUrl = qrCodeServiceUrl # data; // Concatenate the URL with data
-
-    return qrCodeUrl;
-    };
-
-
-public func generateAccessLink(fileId: Text, accessTimeInSeconds: Int, sessionKey: Text): async Text {
-    let isValid = await verifySessionKey(sessionKey);
-
-    let currentTime = Time.now(); // Get current time in seconds
-    Debug.print("Current time: " # Int.toText(currentTime));
-
-    let currentTimeText = Int.toText(currentTime);
-    let accessExpiry = currentTime + accessTimeInSeconds; // Calculate expiry time in seconds
-
-    // let maxNat = 9007199254740991;
-    // let HalfMaxNat: Nat = (maxNat / 2);
-
-    // Declare maxNat as a variable holding the maximum value a Nat can hold
-    let maxNat: Nat = 90070991;
-
-
-    // Calculate HalfMaxNat by dividing maxNat by 2
-    let HalfMaxNat: Nat = maxNat / 2;
-
-    // Check if the calculated accessExpiry is within a safe range
-    if (accessExpiry > HalfMaxNat) {
-        return "Access expiry time too large"; // Handle the error gracefully
-    };
-
-    let uniqueId = Text.concat(fileId , currentTimeText);
-    let uniqueLink = uniqueId # "http://localhost:4943/?canisterId=bkyz2-fmaaa-aaaaa-qaaaq-cai/share/" # fileId;
-
-    let qrCodeUrl = generateQRCode(uniqueLink);
-     //  2024-08-23 08:32:29.616126567 UTC: [Canister bkyz2-fmaaa-aaaaa-qaaaq-cai] "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://localhost:4943/?canisterId=bkyz2-fmaaa-aaaaa-qaaaq-cai/share/1"
-
-    func intToNat(x: Int): Nat {
-        let accessExpiryTxt = Int.toText(x);
-        switch (Nat.fromText(accessExpiryTxt)) {
-            case (?value) {
-                value // Return the converted Nat value
-            };
-            case null {
-                0
+    // Function to archive a file
+    public func archiveFile(fileId: Nat): async Bool {
+        switch (files.get(fileId)) {
+            case null { false };
+            case (?file) {
+                let updatedFile = {
+                    id = file.id;
+                    content = file.content;
+                    name = file.name;
+                    folder = file.folder;
+                    uploadTime = file.uploadTime;
+                    shareExpiry = file.shareExpiry;
+                    isArchived = true;
+                };
+                files.put(fileId, updatedFile);
+                true
             };
         }
     };
 
-    // Usage example
-    let accessExpiryNat = intToNat(accessExpiry); // Convert Int to Nat
-
-        // Create the FileInfo with the converted Nat value
-        let fileInfo: FileInfo = {
-            id = fileId;
-            link = uniqueLink;
-            accessExpiry = accessExpiryNat;
-            qrCodeUrl = qrCodeUrl;
-        };
-
-
-        fileMap.put(fileId, fileInfo);
-
-        return uniqueLink;
-    };
-
-
-
-    public func isAccessValid(fileId: Text): async Bool {
-        switch (fileMap.get(fileId)) {
-            case (?fileInfo) {
-                let currentTime = Time.now();
-                return currentTime <= fileInfo.accessExpiry;
-            };
-            case (_) {
-                return false;
+    // Function to unarchive a file
+    public func unarchiveFile(fileId: Nat): async Bool {
+        switch (files.get(fileId)) {
+            case null { false };
+            case (?file) {
+                let updatedFile = {
+                    id = file.id;
+                    content = file.content;
+                    name = file.name;
+                    folder = file.folder;
+                    uploadTime = file.uploadTime;
+                    shareExpiry = file.shareExpiry;
+                    isArchived = false;
+                };
+                files.put(fileId, updatedFile);
+                true
             };
         }
     };
 
+    // Helper function to convert HashMap to stable storage
+    private func hashMapToArray(): [(Nat, File)] {
+        Iter.toArray(files.entries())
+    };
 
+    // System functions to handle upgrades
+    system func preupgrade() {
+        fileEntries := hashMapToArray();
+    };
+
+    system func postupgrade() {
+        files := HashMap.fromIter<Nat, File>(fileEntries.vals(), 0, Nat.equal, Hash.hash);
+        fileEntries := [];
+    };
 }

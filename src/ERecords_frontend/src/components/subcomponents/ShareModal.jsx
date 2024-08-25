@@ -2,14 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import QRCode from 'qrcode.react';
 import PropTypes from 'prop-types';
+import * as pdfjsLib from 'pdfjs-dist';
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
+// import { pdfjsLib } from 'pdfjs-dist';
+// import pdfWorker from ;
 
-function ShareModal({ show, handleClose, fileId }) {
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+function ShareModal({ show, handleClose, fileId, filesMap }) {
     const [hours, setHours] = useState('00');
     const [minutes, setMinutes] = useState('00');
     const [seconds, setSeconds] = useState('00');
     const [countdown, setCountdown] = useState(0);
     const [accessLink, setAccessLink] = useState('');
     const [qrCodeValue, setQrCodeValue] = useState('');
+    const [fileContent, setFileContent] = useState('');
 
     useEffect(() => {
         // Calculate total countdown time
@@ -36,12 +45,58 @@ function ShareModal({ show, handleClose, fileId }) {
     }, [hours, minutes, seconds, countdown]);
 
     useEffect(() => {
-        // Generate a unique access link and QR code
+        // Set up the access link and QR code
         const token = generateUniqueToken();
-        const link = `https://yourappdomain.com/access/${token}`;
+        const link = `shared/file-access/${token}`;
         setAccessLink(link);
-        setQrCodeValue(link);
-    }, [fileId]);
+        
+        // setQrCodeValue("Shared file:", fileContent);
+
+        // Fetch file content based on fileId
+        const file = filesMap.get(fileId); // Retrieve file from filesMap
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (file.type === 'application/pdf') {
+                    const arrayBuffer = reader.result;
+                    pdfjsLib.getDocument(arrayBuffer).promise.then(pdf => {
+                        pdf.getPage(1).then(page => {
+                            page.getTextContent().then(textContent => {
+                                setQrCodeValue(textContent.items.map(item => item.str).join(' '));
+                            });
+                        });
+                    }).catch(error => {
+                        console.error('Error reading PDF file:', error);
+                        setQrCodeValue('Error reading file content.');
+                    });
+                } 
+                // else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                //     try {
+                //         const arrayBuffer = reader.result;
+                //         const result = mammoth.extractRawText({ arrayBuffer });
+                //         setFileContent(result.value);
+                //     } catch (error) {
+                //         console.error('Error reading .docx file:', error);
+                //         setFileContent('Error reading file content.');
+                //     }
+                // } 
+                // else if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+                //     const arrayBuffer = reader.result;
+                //     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                //     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                //     const data = XLSX.utils.sheet_to_html(worksheet);
+                //     setFileContent(data); // Display the sheet as HTML
+                // } 
+                else {
+                    // Handle other file types as text
+                    setFileContent(reader.result);
+                }
+                setQrCodeValue("Shared file:", fileContent);
+            };
+            reader.readAsArrayBuffer(file);
+            // setQrCodeValue("Shared file:", fileContent);
+        }
+    }, [fileId, filesMap]);
 
     const formatTime = (seconds) => {
         const hrs = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -128,8 +183,7 @@ ShareModal.propTypes = {
 };
 
 const generateUniqueToken = () => {
-    // Generate a random unique token
-    return Math.random().toString(36).substr(2, 9); // Adjust length if needed
+    return Math.random().toString(36).substr(2, 11);
 };
 
 export default ShareModal;
