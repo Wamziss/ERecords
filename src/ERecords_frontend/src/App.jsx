@@ -13,7 +13,7 @@ function App() {
 
   const renderPage = () => {
     switch (path) { 
-        case '/Home':
+        case '/':
           return <Home />;    
         case '/Files':
           return <Fileupload />;    

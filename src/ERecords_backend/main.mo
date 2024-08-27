@@ -85,22 +85,6 @@ public shared func deleteFile(fileId: Text, userId: Text): async Bool {
 };
 
 
-    // // Function to delete a file by its ID if it belongs to the requesting user
-    // public shared func deleteFile(fileId: Text, userId: Text): async Bool {
-    //     switch (files.get(fileId)) {
-    //         case null { false };
-    //         case (?file) {
-    //             if (file.userId == userId) { // Check if the file belongs to the user
-    //                 switch (files.remove(fileId)) {
-    //                     case null { false };
-    //                     case (?_) { true };
-    //                 }
-    //             } else {
-    //                 false
-    //             }
-    //         };
-    //     }
-    // };
 
     // Function to generate a QR code for sharing files (placeholder)
     public func generateQRCode(fileId: Text): async Text {

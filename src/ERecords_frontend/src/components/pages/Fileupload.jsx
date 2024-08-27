@@ -22,7 +22,40 @@ function Fileupload() {
     const [archivedFiles, setArchivedFiles] = useState([]);
     const [selectedFileId, setSelectedFileId] = useState(null);
     const [filesMap, setFilesMap] = useState(new Map());
+    const [myalert, setMyalert] = useState('');
+    const [myalertmsg, setShowalert] = useState(false);
+    const [successmsg, setSuccessmsg] = useState('');
+    const [showMessage, setShowMessage] = useState(false);
     const authClient = useAuth();
+
+    const showSuccessMessage = (message) => {
+        setSuccessmsg(message);
+        setShowMessage(true);
+      };
+    const ShowMyalert = (message) => {
+        setMyalert(message);
+        setShowalert(true);
+      };
+
+      useEffect(() => {
+        if (showMessage) {
+          const timer = setTimeout(() => {
+            setShowMessage(false);
+          }, 500); // 500 seconds
+    
+          return () => clearTimeout(timer); // Cleanup timer on unmount
+        }
+      }, [showMessage]);
+
+      useEffect(() => {
+        if (myalertmsg) {
+          const timer = setTimeout(() => {
+            setShowalert(false);
+          }, 500); // 500 seconds
+    
+          return () => clearTimeout(timer); // Cleanup timer on unmount
+        }
+      }, [myalertmsg]);
 
     useEffect(() => {
         if (!authClient) {
@@ -43,6 +76,7 @@ function Fileupload() {
                 setFilesMap(fileMap);
             } catch (error) {
                 console.error("Error fetching files:", error);
+                // setMyalert('Error retrieving files');
             }
         };
 
@@ -81,8 +115,10 @@ function Fileupload() {
                 const fileBlob = new Uint8Array(arrayBuffer);
                 let folder = "Uploaded Files";
                 await ERecords_backend.uploadFile( file.id, fileBlob, file.name, folder, userId);
+                showSuccessMessage('File successfully uploaded')
             } catch (error) {
                 console.error("File upload failed:", error);
+                ShowMyalert('File upload failed');
             }
         }
     };
@@ -105,6 +141,7 @@ function Fileupload() {
     };
 
     const handleShareClick = (fileId) => {
+        
         setModalFileId(fileId);
         setShowShareModal(true);
     };
@@ -138,11 +175,15 @@ function Fileupload() {
                             archivedTime: new Date().toLocaleString(),
                         }]);
                         setFiles(files.filter(file => file.id !== selectedFileId));
+                        
+                        showSuccessMessage('File archived')
                     } else {
                         console.error("Failed to archive the file.");
                     }
                 } catch (error) {
                     console.error("Error archiving file:", error);
+                    ShowMyalert('Unable to archive file');
+                    
                 }
     
                 handleCloseOptionsModal();
@@ -177,16 +218,20 @@ function Fileupload() {
             if (fileToDelete) {
                 const userId = authClient.getIdentity().getPrincipal().toText();
                 try {
+                    console.log(userId, fileToDelete.id);
                     const success = await ERecords_backend.deleteFile(userId, fileToDelete.id);
                     console.log("Success value:", success);
                     if (success) {
                         setFiles(files.filter(file => file.id !== selectedFileId));
-                        console.log("Success!!")
+                        
+                        showSuccessMessage('File deleted')
+                        // console.log("Success!!")
                     } else {
                         console.error("Failed to delete file from backend.");
                     }
                 } catch (error) {
                     console.error("Error deleting file:", error);
+                    ShowMyalert('Unable to delete file');
                 }
             } else {
                 console.error("File not found:", selectedFileId);
@@ -209,29 +254,34 @@ function Fileupload() {
 
 
     const handleGoogleDriveUpload = () => {
-        window.gapi.load('auth2', () => {
-            const clientId = '422376043263-906451d89c8gqtb5b6e5t2pi326ulp69.apps.googleusercontent.com'
-            window.gapi.auth2.init({client_id: clientId}).then(() => {
-                window.gapi.auth2.getAuthInstance().signIn().then(() => {
-                    const picker = new window.google.picker.PickerBuilder()
-                        .addView(window.google.picker.ViewId.DOCS)
-                        .setOAuthToken(window.gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token)
-                        .setDeveloperKey('AIzaSyD_OOEI0EBqbcEejutLLfvVdiEGaYijLPs')
-                        .setCallback((data) => {
-                            if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.PICKED) {
-                                const doc = data[window.google.picker.Response.DOCUMENTS][0];
-                                const fileId = doc[window.google.picker.Document.ID];
-                                console.log(`Selected file ID: ${fileId}`);
-                                // Implement your backend upload logic here
-                            }
-                        })
-                        .build();
-                    picker.setVisible(true);
+        try {
+            window.gapi.load('auth2', () => {
+                const clientId = '422376043263-906451d89c8gqtb5b6e5t2pi326ulp69.apps.googleusercontent.com'
+                window.gapi.auth2.init({client_id: clientId}).then(() => {
+                    window.gapi.auth2.getAuthInstance().signIn().then(() => {
+                        const picker = new window.google.picker.PickerBuilder()
+                            .addView(window.google.picker.ViewId.DOCS)
+                            .setOAuthToken(window.gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token)
+                            .setDeveloperKey('AIzaSyD_OOEI0EBqbcEejutLLfvVdiEGaYijLPs')
+                            .setCallback((data) => {
+                                if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.PICKED) {
+                                    const doc = data[window.google.picker.Response.DOCUMENTS][0];
+                                    const fileId = doc[window.google.picker.Document.ID];
+                                    console.log(`Selected file ID: ${fileId}`);
+                                    // Implement your backend upload logic here
+                                }
+                            })
+                            .build();
+                        picker.setVisible(true);
+                    });
                 });
             });
-        });
+            
+            showSuccessMessage('Uploading from Google Drive')
+        } catch (error) {
+            ShowMyalert('Unable to access Google Drive');
+        }
     };
-
     const handleDropboxUpload = () => {
         if (typeof Dropbox !== 'undefined' && Dropbox.choose) {
             Dropbox.appKey = "gea0iibazz6rxwt";
@@ -239,12 +289,12 @@ function Fileupload() {
                 success: async (files) => {
                     const file = files[0];
                     console.log(`Selected file: ${file.name}`);
-    
+        
                     try {
                         const response = await fetch(file.link);
                         const arrayBuffer = await response.arrayBuffer();
                         const fileBlob = new Uint8Array(arrayBuffer);
-    
+        
                         const fileId = generateUniqueToken();
                         const newFile = {
                             id: fileId,
@@ -252,23 +302,36 @@ function Fileupload() {
                             uploadTime: new Date().toLocaleString(),
                             fileData: fileBlob,
                         };
-    
-                        const newFilesMap = new Map(filesMap);
-                        newFilesMap.set(newFile.id, newFile.fileData);
-                        setFilesMap(newFilesMap);
-                        setFiles([...files, newFile]);
-    
-                        await ERecords_backend.uploadFile(userId, newFile.id, newFile.fileData, newFile.name);
+        
+                        // Check for duplicates before adding
+                        const fileExists = files.some(existingFile => existingFile.id === newFile.id);
+                        if (!fileExists) {
+                            // Update filesMap
+                            const newFilesMap = new Map(filesMap);
+                            newFilesMap.set(newFile.id, newFile.fileData);
+                            setFilesMap(newFilesMap);
+        
+                            // Update files state
+                            setFiles(prevFiles => [...prevFiles, newFile]);
+        
+                            // Upload the file
+                            await ERecords_backend.uploadFile(userId, newFile.id, newFile.fileData, newFile.name);
+                        } else {
+                            console.log("File already exists in the list.");
+                        }
                     } catch (error) {
                         console.error("Error uploading file from Dropbox:", error);
+                        // ShowMyalert('Unable to upload file from Dropbox');
                     }
                 },
                 linkType: 'direct',
                 multiselect: false,
                 extensions: ['.pdf', '.docx', '.pptx', '.xlsx'],
             });
+            showSuccessMessage('Uploading from Dropbox')
         } else {
             console.error("Dropbox SDK not loaded.");
+            ShowMyalert('Unable to load Dropbox');
         }
     };
 
@@ -310,6 +373,32 @@ function Fileupload() {
         <div style={styles.mainContainer} className='row'>
             <Sidebar />
             <div className='main-contentarea'>
+            <p style={{
+                display: successmsg ? 'block' : 'none',
+                backgroundColor: successmsg ? '#0f01' : 'transparent',
+                // color: 'white',
+                padding: '10px',
+                borderRadius: '15px',
+                position: 'absolute',
+                right: '20px',
+                top: '20px',
+                border: '1px solid #0f0',
+                zIndex: 999
+            }}
+            >{successmsg}</p>
+            <p style={{
+                display: myalert ? 'block' : 'none',
+                backgroundColor: myalert ? '#f001' : 'transparent',
+                // color: 'white',
+                padding: '10px',
+                borderRadius: '15px',
+                position: 'absolute',
+                right: '30px',
+                top: '20px',
+                border: '1px solid #f00',
+                zIndex: 999
+            }}
+            >{myalert}</p>
                 <div style={styles.searchContainer}>
                     <input
                         type="text"
@@ -355,7 +444,7 @@ function Fileupload() {
                         <div key={file.id} className="file-item">
                             <div className="file-details">
                                 <p className="file-name">{file.name}</p>
-                                <p className="upload-time">{file.uploadTime}</p>
+                                {/* <p className="upload-time">{file.uploadTime}</p> */}
                             </div>
                             <div className="file-actions">
                                 <i className="bi bi-share" onClick={() => handleShareClick(file.id)}></i>

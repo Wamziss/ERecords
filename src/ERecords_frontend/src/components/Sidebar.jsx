@@ -88,7 +88,7 @@ function Sidebar() {
                         <li
                             className="nav-item mb-2"
                             key={index + 3}
-                            onClick={() => handleClick(index + 3, item === 'Logout' ? '/Home' : `/${item}`)}
+                            onClick={() => handleClick(index + 3, item === 'Logout' ? '/' : `/${item}`)}
                         >
                             <a
                                 className="nav-link"

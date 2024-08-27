@@ -7,6 +7,7 @@ import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 import '../pages/Styles.css'
+import { useAuth } from '../../AuthContext'
 
 import { ERecords_backend } from '../../../../declarations/ERecords_backend';
 
@@ -20,9 +21,12 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
     const [accessLink, setAccessLink] = useState('Not set');
     const [qrCodeValue, setQrCodeValue] = useState(''); 
     const [timer, setTimer] = useState(null); 
+    const [myalert, setMyalert] = useState('');
+    const authClient = useAuth();
 
     const retrieveFileContent = async () => {
         try {
+            const userId = authClient.getIdentity().getPrincipal().toText();
             const fileArray = await ERecords_backend.getFile(fileId, userId); // Use fileId from props
     
             if (fileArray && fileArray.length > 0) {
@@ -73,11 +77,12 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
                         setAccessLink(link);
                         setQrCodeValue(link);
                         
-                        alert("The document contains more than 100 words. A temporary access link will be used instead of a QR code.");
+                        setMyalert("The document contains more than 100 words. A temporary access link will be used instead of a QR code.");
                     
                         
                         } else {
                         // For 100 words or less, set QR code to textContent
+                        // setAccessLink(link);
                         setQrCodeValue(textContent);
                     }
                 } else {
@@ -167,6 +172,18 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
 
     return (
     <Modal show={show} onHide={handleClose}>
+        <p style={{
+                display: myalert ? 'block' : 'none',
+                backgroundColor: myalert ? '#f001' : 'transparent',
+                // color: 'white',
+                padding: '10px',
+                borderRadius: '15px',
+                border: '1px solid #f00',
+                zIndex: 999,
+                margin: '10px'
+            }}
+            >{myalert}</p>
+
         <Modal.Header closeButton>
             <Modal.Title>Share Document</Modal.Title>
         </Modal.Header>
@@ -209,7 +226,7 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
             <p>Set Time: <strong>{formatTime(countdown)}</strong></p>
         </Modal.Body>
         <Modal.Footer>
-            <Button style={{ backgroundColor: '#6e06b5' }} onClick={startCountdown}>Grant Access</Button>
+            <Button style={{ backgroundColor: '#6e06b5' }} onClick={retrieveFileContent}>Grant Access</Button>
             <Button style={{ backgroundColor: '#333' }} onClick={extendAccess}>Extend Access</Button>
             <Button style={{ backgroundColor: 'red' }} onClick={revokeAccess}>Revoke Access</Button>
             <Button variant="secondary" onClick={handleClose}>Close</Button>
