@@ -149,34 +149,6 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
         retrieveFileContent();
     }, [fileId]);
 
-    // useEffect(() => {
-    //     // Calculate total countdown time
-    //     const totalSeconds = parseInt(hours, 10) * 3600 + parseInt(minutes, 10) * 60 + parseInt(seconds, 10);
-    //     setCountdown(totalSeconds);
-
-    //     // Timer logic
-    //     let timer;
-    //     if (countdown > 0) {
-    //         timer = setInterval(() => {
-    //             setCountdown(prevCountdown => {
-    //                 if (prevCountdown <= 1) {
-    //                     clearInterval(timer);
-    //                     return 0;
-    //                 }
-    //                 return prevCountdown - 1;
-    //             });
-    //         }, 1000);
-    //     } else {
-    //         clearInterval(timer);
-    //     }
-
-    //     return () => clearInterval(timer);
-    // }, [hours, minutes, seconds, countdown]);
-
-    // useEffect(() => {
-    //     retrieveFileContent();
-    // }, [fileId]);
-
     const formatTime = (seconds) => {
         const hrs = Math.floor(seconds / 3600).toString().padStart(2, '0');
         const mins = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
