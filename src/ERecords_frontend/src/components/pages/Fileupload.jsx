@@ -1,23 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import '../styles.css';
 import './Styles.css';
 import ShareModal from '../subcomponents/ShareModal';
 import Sidebar from '../Sidebar';
-import { AuthClient } from '@dfinity/auth-client';
-import { createActor } from '../../../../declarations/ERecords_backend';
+import { useAuth } from '../../AuthContext';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
-import { Actor, HttpAgent} from '@dfinity/agent';
-import { DelegationIdentity } from '@dfinity/identity';
-import { idlFactory } from '../../../../declarations/ERecords_backend/ERecords_backend.did.js';
-import { useAuth } from '../../AuthContext.jsx';
-
-const agent = new HttpAgent();
-// const erecords = Actor.createActor(idlFactory, { agent, canisterId });
-
-
+import { ERecords_backend } from '../../../../declarations/ERecords_backend';
+import Archived from './Archived.jsx';
+// import { useAuth } from '../../AuthContext';
 
 function Fileupload() {
     const [files, setFiles] = useState([]);
@@ -25,190 +18,74 @@ function Fileupload() {
     const fileInputRef = useRef(null);
     const [showShareModal, setShowShareModal] = useState(false);
     const [showOptionsModal, setShowOptionsModal] = useState(false);
-    const [modalFileIndex, setModalFileIndex] = useState(null);
-    const [sharedFiles, setSharedFiles] = useState([]);
-    const [archivedFiles, setArchivedFiles] = useState([]);
-    const [selectedFile, setSelectedFile] = useState(null);
-    const accessLink = "Accesslink://accesslink"; 
-    const [filesMap, setFilesMap] = useState(new Map());
     const [modalFileId, setModalFileId] = useState(null);
+    const [archivedFiles, setArchivedFiles] = useState([]);
+    const [selectedFileId, setSelectedFileId] = useState(null);
+    const [filesMap, setFilesMap] = useState(new Map());
     const authClient = useAuth();
-    // const handleShareClick = (index) => {
-    //     setModalFileIndex(index);
-    //     setShowShareModal(true);
-    // };
-    const handleShareClick = (fileId) => {
-        
-        // const file = files[index];
-        // const sharedFiles = JSON.parse(localStorage.getItem('sharedFiles')) || [];
-        // sharedFiles.push({
-        //     name: file.name,
-        //     sharedTime: new Date().toLocaleString(),
-        // });
-        // localStorage.setItem('sharedFiles', JSON.stringify(sharedFiles));
-        // setModalFileIndex(index);
-        setShowShareModal(true);
-        setModalFileId(fileId);
-        
-    };
-    
 
-    const handleCloseShareModal = () => {
-        setShowShareModal(false);
-        setModalFileIndex(null);
-    };
-
-    const handleOptionsClick = (fileId) => {
-        setSelectedFile(fileId);
-        setShowOptionsModal(true);
-    };
-
-    const handleCloseOptionsModal = () => {
-        setShowOptionsModal(false);
-        setSelectedFile(null);
-    };
-
-    const handleShare = () => {
-        if (selectedFile !== null) {
-            const fileToShare = files[selectedFile];
-            setSharedFiles([...sharedFiles, {
-                name: fileToShare.name,
-                sharedTime: new Date().toLocaleString(),
-            }]);
-            handleCloseShareModal();
-        }
-    };
-
-    const handleArchive = () => {
-        if (selectedFile !== null) {
-            const fileToArchive = files[selectedFile];
-            setArchivedFiles([...archivedFiles, {
-                name: fileToArchive.name,
-                archivedTime: new Date().toLocaleString(),
-            }]);
-            handleCloseOptionsModal();
-        }
-    };
-
-    const getAuthenticatedActor = () => {
+    useEffect(() => {
         if (!authClient) {
-            throw new Error("User is not authenticated. Please sign in first.");
+            console.log("AuthClient is not yet initialized.");
+            return;
         }
-    
-        const identity = authClient.getIdentity(); // Get the identity directly from the AuthClient instance
-        const canisterId = import.meta.env.VITE_CANISTER_ID;
-        
-        console.log("Hurray!:", identity.getPrincipal().toText());
 
-        if (!canisterId) {
-            throw new Error('Canister ID is not defined');
-        }
-    
-        try {
-            const agent = new HttpAgent({ host: 'http://localhost:8000', identity });
-            return Actor.createActor(idlFactory, { agent, canisterId });
-        } catch (error) {
-            console.error("Failed to create actor:", error);
-            throw error;
-        }
-    };
-    
+        console.log("AuthClient initialized:");
+
+        // Fetch files from the backend when authClient is available
+        const fetchFiles = async () => {
+            try {
+                const userId = authClient.getIdentity().getPrincipal().toText();
+                // console.log(userId);
+                const fetchedFiles = await ERecords_backend.getUserFiles(userId);
+                setFiles(fetchedFiles);
+                const fileMap = new Map(fetchedFiles.map(file => [file.id, file.fileData]));
+                setFilesMap(fileMap);
+            } catch (error) {
+                console.error("Error fetching files:", error);
+            }
+        };
+
+        fetchFiles();
+    }, [authClient]);
+
+    const generateUniqueToken = () => {
+    return Math.random().toString(36).substr(2, 17);
+};
+
     const handleFilesUpload = async (uploadedFiles) => {
-        const actor = getAuthenticatedActor();
-        try {
-            const newFilesMap = new Map(filesMap);
-            const newFiles = Array.from(uploadedFiles).map(file => {
-                const fileId = generateUniqueToken(); // Implement your unique token generation
-                return {
-                    id: fileId,
-                    name: file.name,
-                    uploadTime: new Date().toLocaleString(),
-                    fileData: file
-                };
-            });
-    
-            newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
-            setFilesMap(newFilesMap);
-            setFiles([...files, ...newFiles]);
-    
-            for (const file of newFiles) {
+        if (!authClient) {
+            console.error("AuthClient is not initialized.");
+            return;
+        }
+
+        const userId = authClient.getIdentity().getPrincipal().toText();
+        const newFilesMap = new Map(filesMap);
+        const newFiles = Array.from(uploadedFiles).map(file => {
+            const fileId = generateUniqueToken(); 
+            return {
+                id: fileId,
+                name: file.name,
+                uploadTime: new Date().toLocaleString(),
+                fileData: file
+            };
+        });
+
+        newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
+        setFilesMap(newFilesMap);
+        setFiles([...files, ...newFiles]);
+
+        for (const file of newFiles) {
+            try {
                 const arrayBuffer = await file.fileData.arrayBuffer();
                 const fileBlob = new Uint8Array(arrayBuffer);
                 let folder = "Uploaded Files";
-    
-                try {
-                    await actor.uploadFile(fileBlob, file.name, folder);
-                } catch (error) {
-                    console.error("Error is:", error)
-                }
+                await ERecords_backend.uploadFile( file.id, fileBlob, file.name, folder, userId);
+            } catch (error) {
+                console.error("File upload failed:", error);
             }
-        } catch (error) {
-            console.error('File upload failed:', error);
         }
-    };    
-
-    // const getAuthenticatedActor = () => {
-    //     const identityJson = window.sessionStorage.getItem('identity');
-
-    //     const canisterId = import.meta.env.VITE_CANISTER_ID;
-        
-    //     if (!canisterId) {
-    //         throw new Error('Canister ID is not defined');
-    //     }
-    
-    //     if (identityJson) {
-    //         const identity = JSON.parse(identityJson);
-    
-    //         try {
-    //             const agent = new HttpAgent({ identity });
-    //             return Actor.createActor(idlFactory, { agent, canisterId });
-    //         } catch (error) {
-    //             console.error("Failed to create actor:", error);
-    //             throw error;
-    //         }
-    //     }
-
-        
-        
-    // };
-
-    // const handleFilesUpload = async (uploadedFiles) => {
-    //     const actor = getAuthenticatedActor();
-    //     try {
-    //       const newFilesMap = new Map(filesMap);
-    //       const newFiles = Array.from(uploadedFiles).map(file => {
-    //           const fileId = generateUniqueToken(); // Implement your unique token generation
-    //           return {
-    //               id: fileId,
-    //               name: file.name,
-    //               uploadTime: new Date().toLocaleString(),
-    //               fileData: file
-    //           };
-    //       });
-  
-    //       newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
-    //       setFilesMap(newFilesMap);
-    //       setFiles([...files, ...newFiles]);
-      
-    //       for (const file of newFiles) {
-    //         const arrayBuffer = await file.fileData.arrayBuffer();
-    //         // const fileBlob = new Blob([arrayBuffer]); // Convert to Blob type
-    //         const fileBlob = new Uint8Array(arrayBuffer);
-    //         let folder = "Uploaded Files";
-        
-    //         try {
-    //             await actor.uploadFile(fileBlob, file.name, folder);
-    //         } catch (error) {
-    //             console.error("Error is:", error)
-    //         }
-    //     }
-        
-      
-    //     } catch (error) {
-    //       console.error('File upload failed:', error);
-    //     }
-    //   };
-    
+    };
 
     const handleFileInputChange = (event) => {
         handleFilesUpload(event.target.files);
@@ -225,6 +102,174 @@ function Fileupload() {
 
     const handleUploadClick = () => {
         fileInputRef.current.click();
+    };
+
+    const handleShareClick = (fileId) => {
+        setModalFileId(fileId);
+        setShowShareModal(true);
+    };
+
+    const handleCloseShareModal = () => {
+        setShowShareModal(false);
+        setModalFileId(null);
+    };
+
+    const handleOptionsClick = (fileId) => {
+        setSelectedFileId(fileId);
+        setShowOptionsModal(true);
+    };
+
+    const handleCloseOptionsModal = () => {
+        setShowOptionsModal(false);
+        setSelectedFileId(null);
+    };
+
+    const handleArchive = async () => {
+        if (selectedFileId !== null) {
+            const fileToArchive = files.find(file => file.id === selectedFileId);
+    
+            if (fileToArchive) {
+                const userId = authClient.getIdentity().getPrincipal().toText();
+                try {
+                    const success = await ERecords_backend.archiveFile(userId, fileToArchive.id);
+                    if (success) {
+                        setArchivedFiles([...archivedFiles, {
+                            ...fileToArchive,
+                            archivedTime: new Date().toLocaleString(),
+                        }]);
+                        setFiles(files.filter(file => file.id !== selectedFileId));
+                    } else {
+                        console.error("Failed to archive the file.");
+                    }
+                } catch (error) {
+                    console.error("Error archiving file:", error);
+                }
+    
+                handleCloseOptionsModal();
+            }
+        }
+    };
+
+    const handleUnarchive = async (fileId) => {
+        try {
+            const success = await ERecords_backend.unarchiveFile(userId, fileId);
+            if (success) {
+                const fileToRestore = archivedFiles.find(file => file.id === fileId);
+                if (fileToRestore) {
+                    setFiles(prevFiles => [...prevFiles, {
+                        ...fileToRestore,
+                        archivedTime: null, // Clear archived time for restored files
+                    }]);
+                    setArchivedFiles(prevArchivedFiles => prevArchivedFiles.filter(file => file.id !== fileId));
+                }
+            } else {
+                console.error("Failed to unarchive the file.");
+            }
+        } catch (error) {
+            console.error("Error unarchiving file:", error);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (selectedFileId !== null) {
+            const fileToDelete = files.find(file => file.id === selectedFileId);
+            
+            if (fileToDelete) {
+                const userId = authClient.getIdentity().getPrincipal().toText();
+                try {
+                    const success = await ERecords_backend.deleteFile(userId, fileToDelete.id);
+                    console.log("Success value:", success);
+                    if (success) {
+                        setFiles(files.filter(file => file.id !== selectedFileId));
+                        console.log("Success!!")
+                    } else {
+                        console.error("Failed to delete file from backend.");
+                    }
+                } catch (error) {
+                    console.error("Error deleting file:", error);
+                }
+            } else {
+                console.error("File not found:", selectedFileId);
+            }
+    
+            handleCloseOptionsModal();
+        }
+    };
+
+    const handleShare = () => {
+        if (selectedFileId !== null) {
+            const fileToShare = files.find(file => file.id === selectedFileId);
+            setSharedFiles([...sharedFiles, {
+                ...fileToShare,
+                sharedTime: new Date().toLocaleString(),
+            }]);
+            handleCloseShareModal();
+        }
+    };
+
+
+    const handleGoogleDriveUpload = () => {
+        window.gapi.load('auth2', () => {
+            const clientId = '422376043263-906451d89c8gqtb5b6e5t2pi326ulp69.apps.googleusercontent.com'
+            window.gapi.auth2.init({client_id: clientId}).then(() => {
+                window.gapi.auth2.getAuthInstance().signIn().then(() => {
+                    const picker = new window.google.picker.PickerBuilder()
+                        .addView(window.google.picker.ViewId.DOCS)
+                        .setOAuthToken(window.gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token)
+                        .setDeveloperKey('AIzaSyD_OOEI0EBqbcEejutLLfvVdiEGaYijLPs')
+                        .setCallback((data) => {
+                            if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.PICKED) {
+                                const doc = data[window.google.picker.Response.DOCUMENTS][0];
+                                const fileId = doc[window.google.picker.Document.ID];
+                                console.log(`Selected file ID: ${fileId}`);
+                                // Implement your backend upload logic here
+                            }
+                        })
+                        .build();
+                    picker.setVisible(true);
+                });
+            });
+        });
+    };
+
+    const handleDropboxUpload = () => {
+        if (typeof Dropbox !== 'undefined' && Dropbox.choose) {
+            Dropbox.appKey = "gea0iibazz6rxwt";
+            Dropbox.choose({
+                success: async (files) => {
+                    const file = files[0];
+                    console.log(`Selected file: ${file.name}`);
+    
+                    try {
+                        const response = await fetch(file.link);
+                        const arrayBuffer = await response.arrayBuffer();
+                        const fileBlob = new Uint8Array(arrayBuffer);
+    
+                        const fileId = generateUniqueToken();
+                        const newFile = {
+                            id: fileId,
+                            name: file.name,
+                            uploadTime: new Date().toLocaleString(),
+                            fileData: fileBlob,
+                        };
+    
+                        const newFilesMap = new Map(filesMap);
+                        newFilesMap.set(newFile.id, newFile.fileData);
+                        setFilesMap(newFilesMap);
+                        setFiles([...files, newFile]);
+    
+                        await ERecords_backend.uploadFile(userId, newFile.id, newFile.fileData, newFile.name);
+                    } catch (error) {
+                        console.error("Error uploading file from Dropbox:", error);
+                    }
+                },
+                linkType: 'direct',
+                multiselect: false,
+                extensions: ['.pdf', '.docx', '.pptx', '.xlsx'],
+            });
+        } else {
+            console.error("Dropbox SDK not loaded.");
+        }
     };
 
     const styles = {
@@ -294,19 +339,19 @@ function Fileupload() {
                             />
                             <span style={{ margin: 'auto', color: 'gray', fontSize: '16' }}>Drag & drop files here or click to upload</span>
                         </div>
-                        <div className='upload-btns'>
+                        <div className='ext-upload-btns'>
                             <span style={{ fontSize: 10, color: 'gray', }}>upload from*</span>
-                            <button className="upload-btn" onClick={() => alert('coming soon!')}>
+                            <button className="ext-upload-btn" onClick={handleGoogleDriveUpload}>
                                 <i className="bi bi-cloud-arrow-up-fill"></i> Google Drive
                             </button>
-                            <button className="upload-btn" onClick={() => alert('coming soon!')}>
+                            <button className="ext-upload-btn" onClick={handleDropboxUpload}>
                                 <i className="bi bi-dropbox"></i> Drop Box
                             </button>
                         </div>
                     </div>
                 </div>
                 <div className="files-list">
-                    {files.map((file, fileId) => (
+                    {files.map((file) => (
                         <div key={file.id} className="file-item">
                             <div className="file-details">
                                 <p className="file-name">{file.name}</p>
@@ -322,20 +367,21 @@ function Fileupload() {
                                         filesMap={filesMap} 
                                     />
                                 )}
-                                <i className="bi bi-three-dots" onClick={() => handleOptionsClick(fileId)}></i>
+                                <i className="bi bi-three-dots" onClick={() => handleOptionsClick(file.id)}></i>
                             </div>
                         </div>
                     ))}
                 </div>
-
+                {/* <Archived archivedFiles={archivedFiles} setFiles={setFiles} setArchivedFiles={setArchivedFiles} /> */}
+    
                 {/* Options Modal */}
                 <Modal show={showOptionsModal} onHide={handleCloseOptionsModal}>
                     <Modal.Header closeButton>
                         <Modal.Title>File Options</Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
-                        <Button variant="secondary" onClick={handleArchive}>Archive</Button>
-                        <Button variant="danger" className="ms-2" onClick={() => alert('Delete option coming soon!')}>Delete</Button>
+                        <Button variant="secondary" onClick={(userId) => handleArchive(userId)}>Archive</Button>
+                        <Button variant="danger" className="ms-2" onClick={handleDelete}>Delete</Button>
                         <Button variant="warning" className="ms-2" onClick={() => alert('Rename option coming soon!')}>Rename</Button>
                     </Modal.Body>
                 </Modal>
@@ -346,223 +392,71 @@ function Fileupload() {
 
 export default Fileupload;
 
-const generateUniqueToken = () => {
-    return Math.random().toString(36).substr(2, 11);
-};
 
 
 
-// {folders.map((folder, index) => (
-//     <div key={index}>
-//         <div
-//             onClick={() => handleFolderToggle(index)}
-//             style={{ cursor: 'pointer', fontWeight: 'bold' }}
-//         >
-//             {folder.name} {openFolders.includes(index) ? '[-]' : '[+]'}
-//         </div>
-//         {openFolders.includes(index) && (
-//             <div style={{ marginLeft: '20px' }}>
-//                 {folder.files.map((file, fileIndex) => (
-//                     <div key={fileIndex} className="file-item">
-//                         <div className="file-details">
-//                             <p className="file-name">{file.name}</p>
-//                             <p className="upload-time">{file.uploadTime}</p>
-//                         </div>
-//                         <div className="file-actions">
-//                             <i className="bi bi-share" onClick={() => handleShareClick(fileIndex)}></i>
-//                             {modalFileIndex === fileIndex && (
-//                                 <ShareModal
-//                                     show={showShareModal}
-//                                     handleClose={handleCloseShareModal}
-//                                     accessLink={accessLink}
-//                                 />
-//                             )}
-//                             <i className="bi bi-three-dots" onClick={() => handleOptionsClick(fileIndex)}></i>
-//                         </div>
-//                     </div>
-//                 ))}
-//             </div>
-//         )}
-//     </div>
-// ))}
-// import React, { useState, useRef } from 'react';
+// import React, { useState, useRef, useEffect } from 'react';
 // import 'bootstrap/dist/css/bootstrap.min.css';
 // import 'bootstrap-icons/font/bootstrap-icons.css';
 // import '../styles.css';
 // import './Styles.css';
 // import ShareModal from '../subcomponents/ShareModal';
 // import Sidebar from '../Sidebar';
+// import { useAuth } from '../../AuthContext.jsx';
 // import Modal from 'react-bootstrap/Modal';
 // import Button from 'react-bootstrap/Button';
-// import { Actor, HttpAgent } from '@dfinity/agent';
-// import { idlFactory } from '../../../../declarations/ERecords_backend/ERecords_backend.did.js';
-// import mammoth from 'mammoth';
-// import { PDFDocumentProxy } from 'pdfjs-dist';
-// import * as XLSX from 'xlsx';
+// import { ERecords_backend } from '../../../../declarations/ERecords_backend';
+// import Archived from './Archived.jsx';
 
-// const canisterId = import.meta.env.VITE_CANISTER_ID;
-// const agent = new HttpAgent();
-// const erecords = Actor.createActor(idlFactory, { agent, canisterId });
 
-// function Fileupload({ fileId }) {
+// function Fileupload() {
 //     const [files, setFiles] = useState([]);
-//     const [folders, setFolders] = useState([]);
 //     const [isFocused, setIsFocused] = useState(false);
 //     const fileInputRef = useRef(null);
-//     const folderInputRef = useRef(null);
 //     const [showShareModal, setShowShareModal] = useState(false);
 //     const [showOptionsModal, setShowOptionsModal] = useState(false);
-//     const [modalFileIndex, setModalFileIndex] = useState(null);
-//     const [selectedFile, setSelectedFile] = useState(null);
-//     const [selectedFolder, setSelectedFolder] = useState(null);
-//     const [selectedFileContent, setSelectedFileContent] = useState('');
-//     const [showFileModal, setShowFileModal] = useState(false);
-//     const [qrCodeValue, setQrCodeValue] = useState('');
-//     const accessLink = `https://yourappdomain.com/access/${fileId}`;
+//     const [modalFileId, setModalFileId] = useState(null);
+//     const [archivedFiles, setArchivedFiles] = useState([]);
+//     const [sharedFiles, setSharedFiles] = useState([]);
 //     const [selectedFileId, setSelectedFileId] = useState(null);
-    
-//     const generateUniqueToken = () => {
-//         return Math.random().toString(36).substr(2, 9); // Adjust length if needed
-//     };
+//     const [filesMap, setFilesMap] = useState(new Map());
+//     const authClient = useAuth();
 
-
-//     const handleFileClick = (file) => {
-//         const reader = new FileReader();
-    
-//         reader.onload = () => {
-//             if (file.fileData.type === 'application/pdf') {
-//                 const arrayBuffer = reader.result;
-//                 pdfjsLib.getDocument(arrayBuffer).promise.then(pdf => {
-//                     pdf.getPage(1).then(page => {
-//                         page.getTextContent().then(textContent => {
-//                             // Display PDF text content
-//                             setSelectedFileContent(textContent.items.map(item => item.str).join(' '));
-//                         });
-//                     });
-//                 }).catch(error => {
-//                     console.error('Error reading PDF file:', error);
-//                     setSelectedFileContent('Error reading file content.');
-//                 });
-//             } else if (file.fileData.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-//                 // Handle .docx files
-//                 try {
-//                     const arrayBuffer = reader.result;
-//                     const result = mammoth.extractRawText({ arrayBuffer });
-//                     setSelectedFileContent(result.value);
-//                 } catch (error) {
-//                     console.error('Error reading .docx file:', error);
-//                     setSelectedFileContent('Error reading file content.');
-//                 }
-//             } else if (file.fileData.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-//                     const arrayBuffer = reader.result;
-//                     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-//                     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-//                     const data = XLSX.utils.sheet_to_html(worksheet);
-//                     setSelectedFileContent(data); // Display the sheet as HTML
-//             } else {
-//                 // Handle other file types as text
-//                 setSelectedFileContent(reader.result);
-//                 reader.readAsArrayBuffer(file.fileData);
-//             }
-//             setShowFileModal(true);
-//         };
-    
-//         reader.readAsArrayBuffer(file.fileData); // Read as ArrayBuffer for .docx
-//     };
-    
-
-//     const handleShareClick = ({ fileId }) => {
-//         setSelectedFileId(fileId);
-//         setShowShareModal(true);
-//         setQrCodeValue(accessLink);
-//     };
-
-//     const handleCloseShareModal = () => {
-//         setShowShareModal(false);
-//         setModalFileIndex(null);
-//     };
-
-//     const handleOptionsClick = (index) => {
-//         setSelectedFile(index);
-//         setShowOptionsModal(true);
-//     };
-
-//     const handleCloseOptionsModal = () => {
-//         setShowOptionsModal(false);
-//         setSelectedFile(null);
-//     };
-
-//     const handleShare = () => {
-//         if (selectedFile !== null) {
-//             const fileToShare = files[selectedFile];
-//             setFiles(prevFiles => prevFiles.map((file, index) => 
-//                 index === selectedFile ? { ...file, sharedTime: new Date().toLocaleString() } : file
-//             ));
-//             handleCloseShareModal();
-//         }
-//     };
-
-//     const handleArchive = () => {
-//         if (selectedFile !== null) {
-//             setFiles(prevFiles => prevFiles.filter((_, index) => index !== selectedFile));
-//             handleCloseOptionsModal();
-//         }
-//     };
-
-//     const handleFilesUpload = async (event) => {
-//         try {
-//             const uploadedItems = Array.from(event.target.files);
-//             const newFiles = uploadedItems.map(file => ({
+//     const handleFilesUpload = async (uploadedFiles) => {
+//         const newFilesMap = new Map(filesMap);
+//         const newFiles = Array.from(uploadedFiles).map(file => {
+//             const fileId = generateUniqueToken(); 
+//             console.log(fileId);
+//             return {
+//                 id: fileId,
 //                 name: file.name,
 //                 uploadTime: new Date().toLocaleString(),
-//                 fileData: file,
-//                 type: 'file',
-//             }));
+//                 fileData: file
+//             };
+//         });
 
-//             setFiles(prevFiles => [...prevFiles, ...newFiles]);
+//         newFiles.forEach(file => newFilesMap.set(file.id, file.fileData));
+//         setFilesMap(newFilesMap);
+//         setFiles([...files, ...newFiles]);
 
-//             newFiles.forEach(async (file) => {
+//         for (const file of newFiles) {
+//             try {
 //                 const arrayBuffer = await file.fileData.arrayBuffer();
-//                 console.log(`Uploading file: ${file.name}`);
-//             });
-//         } catch (error) {
-//             console.error('File upload failed:', error);
+//                 const fileBlob = new Uint8Array(arrayBuffer);
+//                 let folder = "Uploaded Files";
+//                 try {
+//                     await ERecords_backend.uploadFile(file.id, fileBlob, file.name, folder);   
+//                 } catch (error) {
+//                     console.log("Error!!!", error);
+//                 }
+//             } catch (error) {
+//                 console.error("File upload failed:", error);
+//             }
 //         }
 //     };
 
-//     const handleFolderUpload = (event) => {
-//         try {
-//             const uploadedItems = Array.from(event.target.files);
-//             const newFolders = [];
-    
-//             uploadedItems.forEach(file => {
-//                 const folderPath = file.webkitRelativePath.split('/');
-//                 const folderName = folderPath[0];
-//                 const fileName = folderPath.slice(1).join('/');
-    
-//                 let folder = newFolders.find(f => f.name === folderName);
-//                 if (!folder) {
-//                     folder = { name: folderName, files: [] };
-//                     newFolders.push(folder);
-//                 }
-//                 folder.files.push({
-//                     name: fileName,
-//                     uploadTime: new Date().toLocaleString(),
-//                     fileData: file,
-//                 });
-//             });
-    
-//             setFolders(prevFolders => [...prevFolders, ...newFolders]);
-            
-//             newFolders.forEach(async (folder) => {
-//                 console.log(`Uploading folder: ${folder.name}`);
-//                 folder.files.forEach(async (file) => {
-//                     const arrayBuffer = await file.fileData.arrayBuffer();
-//                 });
-//             });
-//         } catch (error) {
-//             console.error('Folder upload failed:', error);
-//         }
+//     const handleFileInputChange = (event) => {
+//         handleFilesUpload(event.target.files);
 //     };
 
 //     const handleDragOver = (event) => {
@@ -571,26 +465,211 @@ const generateUniqueToken = () => {
 
 //     const handleDrop = (event) => {
 //         event.preventDefault();
-//         handleFilesUpload(event);
+//         handleFilesUpload(event.dataTransfer.files);
 //     };
 
 //     const handleUploadClick = () => {
-//         if (fileInputRef.current) {
-//             fileInputRef.current.click();
+//         fileInputRef.current.click();
+//     };
+
+//     const handleShareClick = (fileId) => {
+//         setModalFileId(fileId);
+//         setShowShareModal(true);
+//     };
+
+//     const handleCloseShareModal = () => {
+//         setShowShareModal(false);
+//         setModalFileId(null);
+//     };
+
+//     const handleOptionsClick = (fileId) => {
+//         setSelectedFileId(fileId);
+//         setShowOptionsModal(true);
+//     };
+
+//     const handleCloseOptionsModal = () => {
+//         setShowOptionsModal(false);
+//         setSelectedFileId(null);
+//     };
+
+//     const handleArchive = async () => {
+//         if (selectedFileId !== null) {
+//             const fileToArchive = files.find(file => file.id === selectedFileId);
+    
+//             if (fileToArchive) {
+//                 try {
+//                     // Call the backend to archive the file
+//                     const success = await ERecords_backend.archiveFile(fileToArchive.id);
+//                     if (success) {
+//                         // Update the local state to reflect the archived status
+//                         setArchivedFiles([...archivedFiles, {
+//                             ...fileToArchive,
+//                             archivedTime: new Date().toLocaleString(),
+//                         }]);
+//                         setFiles(files.filter(file => file.id !== selectedFileId));
+//                     } else {
+//                         console.error("Failed to archive the file.");
+//                     }
+//                 } catch (error) {
+//                     console.error("Error archiving file:", error);
+//                 }
+    
+//                 handleCloseOptionsModal();
+//             }
 //         }
 //     };
 
-//     const handleUploadFolderClick = () => {
-//         if (folderInputRef.current) {
-//             folderInputRef.current.click();
+//     // useEffect(() => {
+//     //   // Fetch archived files from the backend or from props if needed
+//     //   const fetchArchivedFiles = async (fileId) => {
+//     //     try {
+//     //       const archived = await ERecords_backend.unarchiveFile(fileId); // Add a method to get archived files
+//     //       setArchivedFiles(archived);
+//     //     } catch (error) {
+//     //       console.error("Error fetching archived files:", error);
+//     //     }
+//     //   };
+  
+//     //   fetchArchivedFiles();
+//     // }, []);
+  
+//     const handleUnarchive = async (fileId) => {
+//       try {
+//         const success = await ERecords_backend.unarchiveFile(fileId);
+//         if (success) {
+//           const fileToRestore = archivedFiles.find(file => file.id === fileId);
+//           if (fileToRestore) {
+//             setFiles(prevFiles => [...prevFiles, {
+//               ...fileToRestore,
+//               archivedTime: null, // Clear archived time for restored files
+//             }]);
+//             setArchivedFiles(prevArchivedFiles => prevArchivedFiles.filter(file => file.id !== fileId));
+//           }
+//         } else {
+//           console.error("Failed to unarchive the file.");
+//         }
+//       } catch (error) {
+//         console.error("Error unarchiving file:", error);
+//       }
+//     };
+        
+
+//     const handleDelete = async () => {
+//         if (selectedFileId !== null) {
+//             // Find the file to delete
+//             const fileToDelete = files.find(file => file.id === selectedFileId);
+            
+//             if (fileToDelete) {
+//                 // Delete the file from the backend
+//                 try {
+//                     await ERecords_backend.deleteFile(fileToDelete.id); // Assuming there's a deleteFile method in your backend
+//                     // Remove the file from the state
+//                     setFiles(files.filter(file => file.id !== selectedFileId));
+//                     setSelectedFileId(null); // Reset selected file ID
+//                 } catch (error) {
+//                     console.error("Error deleting file:", error);
+//                 }
+//             } else {
+//                 console.error("File not found:", selectedFileId);
+//             }
+    
+//             handleCloseOptionsModal(); // Close the options modal
+//         }
+//     };
+    
+
+//     const handleShare = () => {
+//         if (selectedFileId !== null) {
+//             const fileToShare = files.find(file => file.id === selectedFileId);
+//             setSharedFiles([...sharedFiles, {
+//                 ...fileToShare,
+//                 sharedTime: new Date().toLocaleString(),
+//             }]);
+//             handleCloseShareModal();
 //         }
 //     };
 
-//     const handleFolderToggle = (index) => {
-//         const updatedFolders = [...folders];
-//         updatedFolders[index].isOpen = !updatedFolders[index].isOpen;
-//         setFolders(updatedFolders);
+//     const handleGoogleDriveUpload = () => {
+//         // Load the Google API client library
+//         window.gapi.load('auth2', () => {
+//             const clientId = '422376043263-906451d89c8gqtb5b6e5t2pi326ulp69.apps.googleusercontent.com'
+//             window.gapi.auth2.init({client_id: clientId}).then(() => {
+//                 // Prompt user to sign in
+//                 window.gapi.auth2.getAuthInstance().signIn().then(() => {
+//                     const picker = new window.google.picker.PickerBuilder()
+//                         .addView(window.google.picker.ViewId.DOCS)
+//                         .setOAuthToken(window.gapi.auth2.getAuthInstance().currentUser.get().getAuthResponse().access_token)
+//                         .setDeveloperKey('AIzaSyD_OOEI0EBqbcEejutLLfvVdiEGaYijLPs')
+//                         .setCallback((data) => {
+//                             if (data[window.google.picker.Response.ACTION] === window.google.picker.Action.PICKED) {
+//                                 const doc = data[window.google.picker.Response.DOCUMENTS][0];
+//                                 const fileId = doc[window.google.picker.Document.ID];
+//                                 // Use the fileId to get the file content and upload it to your backend
+//                                 console.log(`Selected file ID: ${fileId}`);
+//                                 // Implement your backend upload logic here
+//                             }
+//                         })
+//                         .build();
+//                     picker.setVisible(true);
+//                 });
+//             });
+//         });
 //     };
+    
+
+//     const handleDropboxUpload = () => {
+//         if (typeof Dropbox !== 'undefined' && Dropbox.choose) {
+//             Dropbox.appKey = "gea0iibazz6rxwt";
+//             Dropbox.choose({
+//                 success: async (files) => {
+//                     const file = files[0];
+//                     console.log(`Selected file: ${file.name}`);
+    
+//                     // Fetch the file data from Dropbox
+//                     try {
+//                         const response = await fetch(file.link);
+//                         const arrayBuffer = await response.arrayBuffer();
+//                         const fileBlob = new Uint8Array(arrayBuffer);
+    
+//                         // Generate a unique ID for the file
+//                         const fileId = generateUniqueToken();
+//                         const newFile = {
+//                             id: fileId,
+//                             name: file.name,
+//                             uploadTime: new Date().toLocaleString(),
+//                             fileData: fileBlob,
+//                         };
+    
+//                         // Add the file to the file list
+//                         const newFilesMap = new Map(filesMap);
+//                         newFilesMap.set(newFile.id, newFile.fileData);
+//                         setFilesMap(newFilesMap);
+//                         setFiles((prevFiles) => [...prevFiles, newFile]);
+    
+//                         // Upload to backend
+//                         let folder = "Uploaded Files";
+//                         try {
+//                             await ERecords_backend.uploadFile(newFile.id, fileBlob, newFile.name, folder);   
+//                         } catch (error) {
+//                             console.log("Error uploading to backend:", error);
+//                         }
+//                     } catch (error) {
+//                         console.error("Failed to fetch file from Dropbox:", error);
+//                     }
+//                 },
+//                 linkType: 'direct', // Use 'direct' to get the actual file link
+//                 multiselect: true,
+//                 extensions: ['.pdf', '.doc', '.jpg', '.png', '.docx'],
+//             });
+//         } else {
+//             console.error('Dropbox SDK is not loaded or choose method is not available');
+//         }
+//     };
+    
+    
+    
+    
+    
 
 //     const styles = {
 //         mainContainer: {
@@ -642,137 +721,68 @@ const generateUniqueToken = () => {
 //                     <i className="bi bi-search" style={styles.searchIcon}></i>
 //                 </div>
 //                 <div className="file-upload-container">
-//                     <span className='upload-txt'>Upload Files</span>
+//                     <p className='upload-txt'>Upload Files</p>
 //                     <div className='file-upload'>
-//                         <div style={{display: 'flex', flexDirection: 'column', height: '100%', width: '80%'}}>
-//                             <div className='upload-btns'>
-//                                 <button className="upload-btn" onClick={handleUploadClick}>
-//                                     <i className="bi bi-upload"></i> Select File
-//                                 </button>
-//                                 <button className="upload-btn" onClick={handleUploadFolderClick}>
-//                                     <i className="bi bi-folder2-open"></i> Upload Folder
-//                                 </button>
-//                                 <input
-//                                     ref={folderInputRef}
-//                                     id="folder-upload-input"
-//                                     type="file"
-//                                     webkitdirectory="true"
-//                                     directory=""
-//                                     multiple
-//                                     style={{ display: 'none' }}
-//                                     onChange={handleFolderUpload}
-//                                 />
-//                             </div>
-//                             <div
-//                                 className="upload-box"
-//                                 onDragOver={handleDragOver}
-//                                 onDrop={handleDrop}
-//                                 onClick={handleUploadClick}
-//                                 style={{display: 'flex', flexDirection: 'column'}}
-//                             >
-//                                 <div>
-//                                     <input
-//                                         ref={fileInputRef}
-//                                         id="file-upload-input"
-//                                         type="file"
-//                                         multiple
-//                                         style={{ display: 'none' }}
-//                                         onChange={handleFilesUpload}
-//                                     />
-//                                     <span style={{ margin: 'auto', color: 'gray', fontSize: '16' }}>
-//                                         Drag & drop files here or click to upload
-//                                     </span>
-//                                 </div>
-//                             </div>
+//                         <div
+//                             className="upload-box"
+//                             onDragOver={handleDragOver}
+//                             onDrop={handleDrop}
+//                             onClick={handleUploadClick}
+//                         >
+//                             <input
+//                                 type="file"
+//                                 multiple
+//                                 ref={fileInputRef}
+//                                 style={{ display: 'none' }}
+//                                 onChange={handleFileInputChange}
+//                             />
+//                             <span style={{ margin: 'auto', color: 'gray', fontSize: '16' }}>Drag & drop files here or click to upload</span>
 //                         </div>
 //                         <div className='ext-upload-btns'>
 //                             <span style={{ fontSize: 10, color: 'gray', }}>upload from*</span>
-//                             <button className="ext-upload-btn" onClick={() => alert('coming soon!')}>
-//                                  <i className="bi bi-cloud-arrow-up-fill"></i> Google Drive
-//                              </button>
-//                              <button className="ext-upload-btn" onClick={() => alert('coming soon!')}>
-//                                  <i className="bi bi-cloud-arrow-up-fill"></i> Dropbox
-//                              </button>
+//                             <button className="ext-upload-btn" onClick={handleGoogleDriveUpload}>
+//                                 <i className="bi bi-cloud-arrow-up-fill"></i> Google Drive
+//                             </button>
+//                             <button className="ext-upload-btn" onClick={handleDropboxUpload}>
+//                                 <i className="bi bi-dropbox"></i> Drop Box
+//                             </button>
 //                         </div>
 //                     </div>
 //                 </div>
-
 //                 <div className="files-list">
-//                     {files.length > 0 && (
-//                         <div className="files-section">
-//                             <h3>Files</h3>
-//                             {files.map((file, index) => (
-//                                 <div key={index} className="file-item">
-//                                     <span className="file-name">{file.name}</span>
-//                                     <button
-//                                         className="btn btn-secondary btn-sm"
-//                                         onClick={() => handleFileClick(file)}
-//                                     >
-//                                         <i className="bi bi-eye"></i> View
-//                                     </button>
-//                                     <button
-//                                         className="btn btn-info btn-sm"
-//                                         onClick={() => handleShareClick(file)}
-//                                     >
-//                                         <i className="bi bi-share"></i> Share
-//                                     </button>
-//                                     <button
-//                                         className="btn btn-danger btn-sm"
-//                                         onClick={() => handleOptionsClick(index)}
-//                                     >
-//                                         <i className="bi bi-gear"></i> Options
-//                                     </button>
-//                                 </div>
-//                             ))}
+//                     {files.map((file) => (
+//                         <div key={file.id} className="file-item">
+//                             <div className="file-details">
+//                                 <p className="file-name">{file.name}</p>
+//                                 <p className="upload-time">{file.uploadTime}</p>
+//                             </div>
+//                             <div className="file-actions">
+//                                 <i className="bi bi-share" onClick={() => handleShareClick(file.id)}></i>
+//                                 {modalFileId && (
+//                                     <ShareModal
+//                                         show={showShareModal}
+//                                         handleClose={handleCloseShareModal}
+//                                         fileId={modalFileId}
+//                                         filesMap={filesMap} 
+//                                     />
+//                                 )}
+//                                 <i className="bi bi-three-dots" onClick={() => handleOptionsClick(file.id)}></i>
+//                             </div>
 //                         </div>
-//                     )}
+//                     ))}
 //                 </div>
-
-//                 <Modal show={showShareModal} onHide={handleCloseShareModal}>
-//                     <Modal.Header closeButton>
-//                         <Modal.Title>Share File</Modal.Title>
-//                     </Modal.Header>
-//                     <Modal.Body>
-//                         <p>Share the file using this QR code:</p>
-//                         <div className="qr-code-container">
-//                             {/* Replace with actual QR code rendering */}
-//                             <img src={`https://api.qrserver.com/v1/create-qr-code/?data=${qrCodeValue}`} alt="QR Code" />
-//                         </div>
-//                         <p>Access link: <a href={qrCodeValue} target="_blank" rel="noopener noreferrer">{qrCodeValue}</a></p>
-//                     </Modal.Body>
-//                     <Modal.Footer>
-//                         <Button variant="secondary" onClick={handleCloseShareModal}>Close</Button>
-//                         <Button variant="primary" onClick={handleShare}>Share</Button>
-//                     </Modal.Footer>
-//                 </Modal>
-
+//                 {/* <Archived archivedFiles={archivedFiles} setFiles={setFiles} setArchivedFiles={setArchivedFiles} /> */}
+    
+//                 {/* Options Modal */}
 //                 <Modal show={showOptionsModal} onHide={handleCloseOptionsModal}>
 //                     <Modal.Header closeButton>
-//                         <Modal.Title>Options</Modal.Title>
+//                         <Modal.Title>File Options</Modal.Title>
 //                     </Modal.Header>
 //                     <Modal.Body>
-//                         <Button variant="primary" onClick={handleShare}>
-//                             <i className="bi bi-share"></i> Share
-//                         </Button>
-//                         <Button variant="danger" onClick={handleArchive} className="mt-2">
-//                             <i className="bi bi-archive"></i> Archive
-//                         </Button>
+//                         <Button variant="secondary" onClick={handleArchive}>Archive</Button>
+//                         <Button variant="danger" className="ms-2" onClick={handleDelete}>Delete</Button>
+//                         <Button variant="warning" className="ms-2" onClick={() => alert('Rename option coming soon!')}>Rename</Button>
 //                     </Modal.Body>
-//                     <Modal.Footer>
-//                         <Button variant="secondary" onClick={handleCloseOptionsModal}>Close</Button>
-//                     </Modal.Footer>
-//                 </Modal>
-
-//                 <Modal show={showFileModal} onHide={() => setShowFileModal(false)}>
-//                     <Modal.Header closeButton>
-//                         <Modal.Title>File Content</Modal.Title>
-//                     </Modal.Header>
-//                     <Modal.Body>
-//                         <pre>{selectedFileContent}</pre>
-//                     </Modal.Body>
-//                     <Modal.Footer>
-//                         <Button variant="secondary" onClick={() => setShowFileModal(false)}>Close</Button>
-//                     </Modal.Footer>
 //                 </Modal>
 //             </div>
 //         </div>
@@ -781,5 +791,7 @@ const generateUniqueToken = () => {
 
 // export default Fileupload;
 
-
+// const generateUniqueToken = () => {
+//     return Math.random().toString(36).substr(2, 17);
+// };
 

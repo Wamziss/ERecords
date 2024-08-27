@@ -4,7 +4,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width" />
-  <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdnjs.cloudflare.com; worker-src 'self' blob:;">
+  <!-- <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://www.dropbox.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com;
+    script-src-elem 'self' https://www.dropbox.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com;
+    connect-src 'self' https://www.dropbox.com https://apis.google.com https://accounts.google.com http://localhost:8000;
+    frame-src 'self' https://accounts.google.com https://drive.google.com;
+    img-src 'self' data: https://www.dropbox.com https://apis.google.com https://accounts.google.com;
+    style-src 'self' 'unsafe-inline';
+    worker-src 'self' blob:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    upgrade-insecure-requests;
+"> -->
+
   <title>IC Hello Starter</title>
   <base href="/" />
   <link rel="icon" href="/favicon.ico" />
@@ -15,6 +30,10 @@
 <body>
   <div id="root" style="overflow: hidden; padding: 0;"></div>
   <script type="module" src="/src/main.jsx"></script>
+  
+  <script src="https://www.dropbox.com/static/api/2/dropins.js"></script>
+  <script src="https://apis.google.com/js/api.js"></script>
+
 </body>
 
 </html>

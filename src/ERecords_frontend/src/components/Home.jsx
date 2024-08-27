@@ -11,6 +11,8 @@ import { AuthClient } from '@dfinity/auth-client';
 import decentralized from '../assets/decentralized.jpg';
 import { useAuth } from '../AuthContext';
 
+
+const identityProviderUrl = import.meta.env.VITE_II_URL;
 function Home() {
     const authClient = useAuth();
 
@@ -26,9 +28,6 @@ function Home() {
                         const identity = authClient.getIdentity();
                         console.log(identity.getPrincipal().toText());
                         window.location.href = './Files';
-
-                        // Optional
-                        // window.sessionStorage.setItem('identity', JSON.stringify(identity));
                     },
                     onError: (error) => {
                         console.error("Login failed:", error);
@@ -39,7 +38,6 @@ function Home() {
             }
         }
     };
-    
 
     return (
         <div className="landing-page">

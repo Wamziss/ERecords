@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes for prop validation
 import Sidebar from '../Sidebar';
 
-const Archived = ({ archivedFiles = [] }) => { // Default to an empty array if not provided
+const Archived = ({ archivedFiles = [], handleUnarchive }) => { // Added props for state setters
 
   const styles = {
     mainContainer: {
@@ -28,6 +28,7 @@ const Archived = ({ archivedFiles = [] }) => { // Default to an empty array if n
                 <li key={index}>
                   <p>{file.name}</p>
                   <p>Archived Time: {file.archivedTime}</p>
+                  <button onClick={() => handleUnarchive(file.id)}>Restore</button> {/* Pass fileId here */}
                 </li>
               ))
             ) : (
@@ -44,11 +45,15 @@ const Archived = ({ archivedFiles = [] }) => { // Default to an empty array if n
 Archived.propTypes = {
   archivedFiles: PropTypes.arrayOf(
     PropTypes.shape({
+      id: PropTypes.string.isRequired,
       name: PropTypes.string.isRequired,
       archivedTime: PropTypes.string.isRequired,
     })
-  )
+  ),
+  setFiles: PropTypes.func.isRequired, // Prop for setting the file list
+  setArchivedFiles: PropTypes.func.isRequired, // Prop for setting the archived files
 };
 
 export default Archived;
+
 
