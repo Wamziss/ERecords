@@ -10,6 +10,8 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import { ERecords_backend } from '../../../../declarations/ERecords_backend';
 import Archived from './Archived.jsx';
+import { Actor, HttpAgent} from '@dfinity/agent';
+import { idlFactory } from '../../../../declarations/ERecords_backend/ERecords_backend.did.js';
 // import { useAuth } from '../../AuthContext';
 
 function Fileupload() {
@@ -37,6 +39,15 @@ function Fileupload() {
         setShowalert(true);
       };
 
+    //   useEffect(() => {
+    //     first
+      
+    //     return () => {
+    //       second
+    //     }
+    //   }, [third])
+      
+
       useEffect(() => {
         if (showMessage) {
           const timer = setTimeout(() => {
@@ -63,14 +74,37 @@ function Fileupload() {
             return;
         }
 
+        
+        const identity = authClient.getIdentity();
+        const canisterId = import.meta.env.VITE_CANISTER_ID;
+
+        console.log("Hurray!:", identity.getPrincipal().toText());
+
+        if (!canisterId) {
+            throw new Error('Canister ID is not defined');
+        }
+
+        const getAuthenticatedActor = () => {
+            try {
+                const agent = new HttpAgent({ identity });
+                return Actor.createActor(idlFactory, { agent, canisterId });
+            } catch (error) {
+                console.error("Failed to create actor:", error);
+                throw error;
+            }
+        }
+
         console.log("AuthClient initialized:");
 
         // Fetch files from the backend when authClient is available
         const fetchFiles = async () => {
+            const actor = getAuthenticatedActor();
+            console.log("actor:", actor);
             try {
                 const userId = authClient.getIdentity().getPrincipal().toText();
                 // console.log(userId);
-                const fetchedFiles = await ERecords_backend.getUserFiles(userId);
+                // const fetchedFiles = await ERecords_backend.getUserFiles(userId);
+                const fetchedFiles = await actor.getUserFiles(userId);
                 setFiles(fetchedFiles);
                 const fileMap = new Map(fetchedFiles.map(file => [file.id, file.fileData]));
                 setFilesMap(fileMap);

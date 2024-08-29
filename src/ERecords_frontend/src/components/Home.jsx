@@ -20,8 +20,9 @@ function Home() {
         event.preventDefault();
         if (authClient) {
             try {
+                let identityProvider = process.env.II_URL;
                 authClient.login({
-                    identityProvider: process.env.II_URL,
+                    identityProvider,
                     onSuccess: async () => {
                         console.log("Logged in!");
 
