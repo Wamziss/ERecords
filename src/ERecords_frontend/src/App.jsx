@@ -24,9 +24,9 @@ function App() {
           return <FileContent />  ;
         case '/Mails':
           return <Inbox/>;  //inbox
-        case '/Compose':
+        case '/Mails/Compose':
           return <Composemsg/>;   //compose msg
-        case '/Message/:id': //messageview
+        case '/Mails/Message/:id': //messageview
           return <MessageView/>;   
         case '/Shared':
           return <Shared/>;   

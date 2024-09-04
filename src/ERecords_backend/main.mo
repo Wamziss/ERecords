@@ -307,24 +307,24 @@ public shared func sendMessage(
         sender = senderId;
         subject = subject;
         body = body;
-        attachment = attachment;
-        // timestamp = Time.now();
-        timestamp = generateTimestamp(); 
+        attachment = attachment; // This can be null or Some(Blob)
+        timestamp = generateTimestamp();
     };
 
     switch (mailAccounts.get(recipientId)) {
         case (null) { false };
         case (?account) {
-            // Append new message to inbox
             let updatedInbox = Array.append(account.inbox, [newMessage]);
             let updatedAccount = {
-                inbox = updatedInbox
+                inbox = updatedInbox;
             };
             mailAccounts.put(recipientId, updatedAccount);
             true;
         };
     }
 };
+
+
 
     public query func receiveMessages(userId: Text): async [Message] {
         switch (mailAccounts.get(userId)) {

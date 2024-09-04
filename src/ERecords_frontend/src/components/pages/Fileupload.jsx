@@ -148,6 +148,7 @@ function Fileupload() {
                 const arrayBuffer = await file.fileData.arrayBuffer();
                 const fileBlob = new Uint8Array(arrayBuffer);
                 let folder = "Uploaded Files";
+                console.log("Fileupload file blob:", fileBlob);
                 await ERecords_backend.uploadFile( file.id, fileBlob, file.name, folder, userId);
                 showSuccessMessage('File successfully uploaded')
             } catch (error) {

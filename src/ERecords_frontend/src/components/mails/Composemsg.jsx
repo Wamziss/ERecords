@@ -18,6 +18,34 @@ function Composemsg() {
     setAttachments([...event.target.files]);
   };
 
+  // const sendMessage = async (event) => {
+  //   event.preventDefault();
+  //   if (!authClient) {
+  //     console.log('AuthClient not initialized');
+  //     return;
+  //   }
+  
+  //   const senderId = authClient.getIdentity().getPrincipal().toText();
+  
+  //   // Convert the first attachment to Blob (Uint8Array) or set to null
+  //   let attachmentBlob;
+  //   if (attachments.length > 0) {
+  //     const file = attachments[0];
+  //     const arrayBuffer = await file.arrayBuffer();
+  //     attachmentBlob = new Uint8Array(arrayBuffer); // Convert ArrayBuffer to Uint8Array
+  //   }
+  
+  //   try {
+  //     // Ensure that null is passed when there's no attachment
+  //     console.log("Send message", attachmentBlob);
+  //     await ERecords_backend.sendMessage(senderId, recipient, subject, body, attachmentBlob);
+  //     console.log('Mail sent');
+  //   } catch (error) {
+  //     console.error('Error sending message:', error);
+  //   }
+  // };
+  
+  
   const sendMessage = async (event) => {
     event.preventDefault();
     if (!authClient) {
@@ -25,7 +53,16 @@ function Composemsg() {
       return;
     }
     const senderId = authClient.getIdentity().getPrincipal().toText();
+    let attachmentBlob = null;
+    if (attachments.length > 0) {
+      const file = attachments[0];
+      const arrayBuffer = await file.arrayBuffer();
+      attachmentBlob = new Uint8Array(arrayBuffer);
+      console.log(attachmentBlob);
+    }
     try {
+      // console.log(attachmentBlob)
+      // await ERecords_backend.sendMessage(senderId, recipient, subject, body, attachmentBlob);
       await ERecords_backend.sendMessage(senderId, recipient, subject, body, attachments);
       console.log('Mail sent');
     } catch (error) {
@@ -69,7 +106,7 @@ function Composemsg() {
                 required
             ></textarea>
             </div>
-            <div className="mb-3">
+            {/* <div className="mb-3">
             <label className="form-label">Attachments</label>
             <input
                 type="file"
@@ -77,7 +114,7 @@ function Composemsg() {
                 multiple
                 onChange={handleFileChange}
             />
-            </div>
+            </div> */}
             <button type="submit" className="btn btn-primary">Send</button>
         </form>
         </div>
