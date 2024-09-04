@@ -6,6 +6,9 @@ import FileContent from './components/subcomponents/FileContent';
 import Shared from './components/pages/Shared';
 import Archived from './components/pages/Archived';
 import Settings from './components/pages/Settings';
+import Inbox from './components/mails/Inbox';
+import Composemsg from './components/mails/Composemsg';
+import MessageView from './components/mails/MessageView';
 
 function App() {
 
@@ -19,6 +22,12 @@ function App() {
           return <Fileupload />;    
         case '/Files/Filecontent':
           return <FileContent />  ;
+        case '/Mails':
+          return <Inbox/>;  //inbox
+        case '/Compose':
+          return <Composemsg/>;   //compose msg
+        case '/Message/:id': //messageview
+          return <MessageView/>;   
         case '/Shared':
           return <Shared/>;   
         case '/Archived':

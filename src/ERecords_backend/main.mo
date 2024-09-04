@@ -4,6 +4,12 @@ import Time "mo:base/Time";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
+import Int "mo:base/Int";
+import Char "mo:base/Char";
+import Nat "mo:base/Nat";
+import Nat8 "mo:base/Nat8";
+import Random "mo:base/Random";
+import Principal "mo:base/Principal";
 
 actor ERecords {
     // File structure
@@ -17,6 +23,25 @@ actor ERecords {
         isArchived: Bool;
         userId: Text; // Add userId to the file structure
     };
+
+    type Message = {
+        id: Text;
+        sender: Text;
+        subject: Text;
+        body: Text;
+        attachment: ?Blob;
+        // timestamp: Time.Time;
+        timestamp: Text;
+    };
+
+    type MailAccount = {
+        inbox: [Message];
+    };
+
+    private var mailAccounts = HashMap.HashMap<Text, MailAccount>(0, Text.equal, Text.hash);
+
+    // Stable storage for upgrade purposes
+    private stable var mailAccountsStorage: [(Text, MailAccount)] = [];
 
     // Stable storage for files
     private stable var fileEntries: [(Text, File)] = [];
@@ -240,20 +265,227 @@ public shared func deleteFile(fileId: Text, userId: Text): async Bool {
         tokens.get(token)
     };
 
-    // Helper function to convert HashMap to stable storage
-    private func hashMapToArray(): [(Text, File)] {
-        Iter.toArray(files.entries())
+
+// Mail system
+
+// public query func getUserId(msg: {caller: Principal}): async Text {
+//     let userPrincipal = msg.caller;
+//     return Principal.toText(userPrincipal);
+// };
+// import Principal "mo:base/Principal";
+// public query func getUserId(caller: Principal): async Text {
+//     return Principal.toText(caller);
+// };
+
+
+
+
+    // Mail Functions
+    public shared func createMailAccount(userId: Text): async Bool {
+        switch (mailAccounts.get(userId)) {
+            case (null) {
+                let newAccount: MailAccount = {
+                    inbox = [];
+                };
+                mailAccounts.put(userId, newAccount);
+                true;
+            };
+            case (?_) { false };
+        }
     };
 
-    // System functions to handle upgrades
+public shared func sendMessage(
+    senderId: Text,
+    recipientId: Text,
+    subject: Text,
+    body: Text,
+    attachment: ?Blob
+): async Bool {
+    let messageId = generateMessageId();
+    let newMessage: Message = {
+        id = await messageId;
+        sender = senderId;
+        subject = subject;
+        body = body;
+        attachment = attachment;
+        // timestamp = Time.now();
+        timestamp = generateTimestamp(); 
+    };
+
+    switch (mailAccounts.get(recipientId)) {
+        case (null) { false };
+        case (?account) {
+            // Append new message to inbox
+            let updatedInbox = Array.append(account.inbox, [newMessage]);
+            let updatedAccount = {
+                inbox = updatedInbox
+            };
+            mailAccounts.put(recipientId, updatedAccount);
+            true;
+        };
+    }
+};
+
+    public query func receiveMessages(userId: Text): async [Message] {
+        switch (mailAccounts.get(userId)) {
+            case (null) { [] };
+            case (?account) { account.inbox };
+        }
+    };
+
+
+    public query func getMessage(userId: Text, messageId: Text): async ?Message {
+        switch (mailAccounts.get(userId)) {
+            case (null) { null };
+            case (?account) {
+                // Search for the message with the given ID
+                let foundMessage = Array.find<Message>(account.inbox, func(msg) {
+                    msg.id == messageId
+                });
+                foundMessage
+            };
+        }
+    };
+
+    public query func getAttachment(userId: Text, messageId: Text): async ?Blob {
+        switch (mailAccounts.get(userId)) {
+            case (null) { null };
+            case (?account) {
+                // Find the message and return the attachment
+                let foundMessage = Array.find<Message>(account.inbox, func(msg) {
+                    msg.id == messageId
+                });
+                switch (foundMessage) {
+                    case (null) { null };
+                    case (?msg) { msg.attachment };
+                }
+            };
+        }
+    };
+
+    public shared func deleteMessage(userId: Text, messageId: Text): async Bool {
+        switch (mailAccounts.get(userId)) {
+            case (null) { false };
+            case (?account) {
+                // Filter out the message with the given ID
+                let updatedInbox = Array.filter<Message>(account.inbox, func(msg) {
+                    msg.id != messageId
+                });
+                let updatedAccount = {
+                    inbox = updatedInbox
+                };
+                mailAccounts.put(userId, updatedAccount);
+                true;
+            };
+        }
+    };
+
+    public query func searchMessages(userId: Text, searchTerm: Text): async [Message] {
+        let lowercaseSearchTerm = Text.toLowercase(searchTerm);
+        switch (mailAccounts.get(userId)) {
+            case (null) { [] };
+            case (?account) {
+                // Filter messages based on search term
+                Array.filter<Message>(account.inbox, func(msg) {
+                    let lowercaseSubject = Text.toLowercase(msg.subject);
+                    Text.contains(lowercaseSubject, #text lowercaseSearchTerm)
+                })
+            };
+        }
+    };
+
+
+  
+  // Simple pseudo-random number generator based on time
+    private func intToText(n: Int): Text {
+        if (n == 0) {
+            return "0";
+        };
+        var num = n;
+        var result = "";
+        let digits = Text.toArray("0123456789");
+        while (num > 0) {
+            let digit = Int.abs(num % 10);
+            result := Text.concat(Text.fromChar(digits[digit]), result);
+            num := num / 10;
+        };
+        result
+    };
+
+
+
+
+
+
+        // Simple pseudo-random number generator based on time
+    private func blobToHex(blob: Blob): Text {
+        let hexDigits = Text.toArray("0123456789ABCDEF");
+        var result = "";
+        for (byte in blob.vals()) {
+            let highNibble = Nat8.toNat(byte / 16);
+            let lowNibble = Nat8.toNat(byte % 16);
+            result := Text.concat(result, Text.fromChar(hexDigits[highNibble]));
+            result := Text.concat(result, Text.fromChar(hexDigits[lowNibble]));
+        };
+        result
+    };
+
+
+    // Generate a unique message ID
+private func generateMessageId(): async Text {
+    let now = Time.now();
+    let nowSeconds = now / (1_000_000_000); // Convert to seconds
+    let randomPart = await Random.blob(); // Generate random bytes
+
+    // Convert the time and random part to text
+    let timeText = intToText(nowSeconds);
+    let randomText = blobToHex(randomPart);
+
+    // Concatenate for a unique identifier
+    let id = Text.concat(timeText, "_");
+    Text.concat(id, randomText)
+};
+
+
+    // Generate a timestamp
+    private func generateTimestamp(): Text {
+        let now = Time.now();
+        let nowSeconds = now / (1_000_000_000); // Convert to seconds
+
+        // Convert the time to text
+        intToText(nowSeconds)
+    };
+
+
+
+    // Pre and Post Upgrade Functions
     system func preupgrade() {
         fileEntries := hashMapToArray();
+        mailAccountsStorage := Iter.toArray(mailAccounts.entries());
     };
 
     system func postupgrade() {
         files := HashMap.fromIter<Text, File>(fileEntries.vals(), 0, Text.equal, Text.hash);
         // Ensure fileEntries is only set with current files
         fileEntries := hashMapToArray();
+
+        mailAccounts := HashMap.fromIter<Text, MailAccount>(
+            mailAccountsStorage.vals(),
+            0,
+            Text.equal,
+            Text.hash
+        );
+        mailAccountsStorage := Iter.toArray(mailAccounts.entries());
     };
+
+        // Helper function to convert HashMap to stable storage
+    private func hashMapToArray(): [(Text, File)] {
+        Iter.toArray(files.entries())
+    };
+
+    // System functions to handle upgrades
+
+ 
+
 
 }

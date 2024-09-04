@@ -103,8 +103,8 @@ function Fileupload() {
             try {
                 const userId = authClient.getIdentity().getPrincipal().toText();
                 // console.log(userId);
-                // const fetchedFiles = await ERecords_backend.getUserFiles(userId);
-                const fetchedFiles = await actor.getUserFiles(userId);
+                const fetchedFiles = await ERecords_backend.getUserFiles(userId);
+                // const fetchedFiles = await actor.getUserFiles(userId);
                 setFiles(fetchedFiles);
                 const fileMap = new Map(fetchedFiles.map(file => [file.id, file.fileData]));
                 setFilesMap(fileMap);
