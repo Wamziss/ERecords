@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ERecords_backend } from '../../../../declarations/ERecords_backend';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import Sidebar from '../Sidebar';
 import { useAuth } from '../../AuthContext';
+import './Styles.css'
 
 function Composemsg() {
   const [recipient, setRecipient] = useState('');
@@ -73,38 +74,43 @@ function Composemsg() {
   return (
     <div className='mainContainer'>
         <Sidebar/>
-        <div className="compose-message main-contentarea">
-        <h2>Compose Message</h2>
-        <form onSubmit={sendMessage}>
-            <div className="mb-3">
-            <label className="form-label">Recipient</label>
-            <input
-                type="text"
-                className="form-control"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                required
-            />
-            </div>
-            <div className="mb-3">
-            <label className="form-label">Subject</label>
-            <input
-                type="text"
-                className="form-control"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                required
-            />
-            </div>
-            <div className="mb-3">
-            <label className="form-label">Message</label>
-            <textarea
-                className="form-control"
-                rows="5"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                required
-            ></textarea>
+        <div className="main-contentarea">
+        <div style={{display: 'flex', width: '70%', justifyContent: 'space-between', marginBottom: '20px'}}>
+          <h2 style={{fontSize: 27, fontWeight: 'bold', margin: '20px', marginBottom: 0}}>Compose Email</h2><br/>
+          <p className='' style={{ backgroundColor: '#f5f5f5', border: '1px solid gray', borderRadius: '5px', padding: '0 15px', margin: '5px 20px'}}><i class="bi bi-arrow-left"></i><Link to="/Mails" onClick={() => {window.location.href = '/Mails'}} style={{textDecoration: 'none', color: '#000', fontSize: '20px', marginLeft: '10px'}}>Inbox</Link></p>
+        </div>
+        <form onSubmit={sendMessage} className='send-mail-form'>
+            <div style={{minWidth: '100%'}}>
+              <div className="mb-1" style={{minWidth: '100%'}}>
+                <label className="form-label">Recipient</label>
+                <input
+                    type="text"
+                    className="form-control"
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                    required
+                />
+              </div><br/>
+              <div className="mb-1" style={{minWidth: '100%'}}>
+                <label className="form-label">Subject</label>
+                <input
+                    type="text"
+                    className="form-control"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    required
+                />
+                </div><br/>
+              <div className="mb-1"  style={{minWidth: '100%'}}>
+                <label className="form-label">Message</label>
+                <textarea
+                    className="form-control"
+                    rows="5"
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    required
+                ></textarea>
+              </div><br/>
             </div>
             {/* <div className="mb-3">
             <label className="form-label">Attachments</label>
@@ -115,7 +121,7 @@ function Composemsg() {
                 onChange={handleFileChange}
             />
             </div> */}
-            <button type="submit" className="btn btn-primary">Send</button>
+            <button type='submit' className='mail-send-btn'>Send</button>
         </form>
         </div>
     </div>
