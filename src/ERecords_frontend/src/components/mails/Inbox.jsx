@@ -70,23 +70,6 @@ function Inbox() {
       console.error('Error fetching inbox:', error);
     }
   };
-  
-
-  // const fetchInbox = async () => {
-  //   if (!authClient) {
-  //     console.log('AuthClient not initialized');
-  //     return;
-  //   }
-  //   const userId = authClient.getIdentity().getPrincipal().toText();
-  //   try {
-  //     const result = await ERecords_backend.receiveMessages(userId);
-  //     console.log('result:', result);
-
-  //     setMessages(result);
-  //   } catch (error) {
-  //     console.error('Error fetching inbox:', error);
-  //   }
-  // };
 
   const deleteMessage = async (messageId) => {
     if (!authClient) {
