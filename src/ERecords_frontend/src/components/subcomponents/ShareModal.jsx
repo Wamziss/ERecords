@@ -14,9 +14,9 @@ import { ERecords_backend } from '../../../../declarations/ERecords_backend';
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 function ShareModal({ show, handleClose, fileId, filesMap }) {
-    const [hours, setHours] = useState('00');
-    const [minutes, setMinutes] = useState('00');
-    const [seconds, setSeconds] = useState('00');
+    const [hours, setHours] = useState();
+    const [minutes, setMinutes] = useState();
+    const [seconds, setSeconds] = useState();
     const [countdown, setCountdown] = useState(0);
     const [accessLink, setAccessLink] = useState('Not set');
     const [qrCodeValue, setQrCodeValue] = useState(''); 
@@ -154,19 +154,28 @@ function ShareModal({ show, handleClose, fileId, filesMap }) {
         retrieveFileContent();
     }, [fileId]);
 
+
+    // const handleInputChange = (setter, max) => (event) => {
+    //     const value = event.target.value;
+    //     if (/^\d*$/.test(value)) {
+    //         const number = Math.min(parseInt(value, 10), max).toString().padStart(2, '0');
+    //         setter(number);
+    //     }
+    // };
+    const handleInputChange = (setter, max) => (event) => {
+        const value = event.target.value;
+        if (/^\d*$/.test(value)) {
+            const number = Math.min(parseInt(value, 10), max);
+            setter(number.toString());
+        }
+    };
+
+    
     const formatTime = (seconds) => {
         const hrs = Math.floor(seconds / 3600).toString().padStart(2, '0');
         const mins = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
         const secs = (seconds % 60).toString().padStart(2, '0');
         return `${hrs}:${mins}:${secs}`;
-    };
-
-    const handleInputChange = (setter, max) => (event) => {
-        const value = event.target.value;
-        if (/^\d*$/.test(value)) {
-            const number = Math.min(parseInt(value, 10), max).toString().padStart(2, '0');
-            setter(number);
-        }
     };
 
 

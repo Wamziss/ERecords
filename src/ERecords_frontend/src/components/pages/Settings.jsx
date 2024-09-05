@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../Sidebar';
 import { useAuth } from '../../AuthContext';
+import QRmodal from './QRmodal';
+import { Button } from 'react-bootstrap';
 function Settings() {
     const authClient = useAuth();
     const [principalId, setPrincipalId] = useState(null);
     const [copySuccess, setCopySuccess] = useState('');
     const [copyFail, setCopyFail] = useState('');
     const inputRef = useRef(null);
+    const [showQRModal, setShowQRModal] = useState(false);
+
+    const handleShowQRModal = () => setShowQRModal(true);
+    const handleCloseQRModal = () => setShowQRModal(false);
   
     useEffect(() => {
       if (authClient) {
@@ -95,6 +101,8 @@ function Settings() {
                         <button onClick={copyToClipboard} className="copy-btn" disabled={!principalId}>
                             <i class="bi bi-copy" ></i>
                         </button>
+                        <button onClick={handleShowQRModal} style={{backgroundColor: '#f5f5f5', padding: '2px 5px', borderRadius: '5px', marginLeft: '10px', width: 'fit-content', border: 'none'}}>Share as QR</button>
+                        <QRmodal show={showQRModal} handleClose={handleCloseQRModal} />
                     </div>
                     
                 </div>

@@ -20,7 +20,7 @@ function App() {
           return <Home />;    
         case '/Files':
           return <Fileupload />;    
-        case '/Files/Filecontent':
+        case '/Files/Filecontent/:token':
           return <FileContent />  ;
         case '/Mails':
           return <Inbox/>;  //inbox
